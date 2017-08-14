@@ -1,7 +1,7 @@
 require 'uri'
 
 class IntegrationEvaluator
-	def getMatchedIntegrationConfig(customerIntegration, currentPageUrl, cookieList)
+	def getMatchedIntegrationConfig(customerIntegration, currentPageUrl, cookieList, userAgent)
 		if (!customerIntegration.kind_of?(Hash) || !customerIntegration.key?("Integrations") ||
             !customerIntegration["Integrations"].kind_of?(Array))
 			return nil;
@@ -13,7 +13,7 @@ class IntegrationEvaluator
 				if(!trigger.kind_of?(Hash))
 					return false
 				end
-				if(evaluateTrigger(trigger, currentPageUrl, cookieList))
+				if(evaluateTrigger(trigger, currentPageUrl, cookieList, userAgent))
 					return integrationConfig
 				end
 			end
@@ -22,7 +22,7 @@ class IntegrationEvaluator
 		return nil
 	end
 
-	def evaluateTrigger(trigger, currentPageUrl, cookieList)
+	def evaluateTrigger(trigger, currentPageUrl, cookieList, userAgent)
 		if (!trigger.key?("LogicalOperator") ||
             !trigger.key?("TriggerParts") ||
             !trigger["TriggerParts"].kind_of?(Array))
@@ -34,7 +34,7 @@ class IntegrationEvaluator
 				if(!triggerPart.kind_of?(Hash))
 					return false
 				end
-				if(evaluateTriggerPart(triggerPart, currentPageUrl, cookieList))
+				if(evaluateTriggerPart(triggerPart, currentPageUrl, cookieList, userAgent))
 					return true
 				end
 			end
@@ -44,7 +44,7 @@ class IntegrationEvaluator
 				if(!triggerPart.kind_of?(Hash))
 					return false
 				end
-				if(!evaluateTriggerPart(triggerPart, currentPageUrl, cookieList))
+				if(!evaluateTriggerPart(triggerPart, currentPageUrl, cookieList, userAgent))
 					return false
 				end
 			end
@@ -52,7 +52,7 @@ class IntegrationEvaluator
 		end
 	end
 
-	def evaluateTriggerPart(triggerPart, currentPageUrl, cookieList)
+	def evaluateTriggerPart(triggerPart, currentPageUrl, cookieList, userAgent)
 		if (!triggerPart.key?("ValidatorType"))
 			return false
 		end
@@ -62,6 +62,8 @@ class IntegrationEvaluator
 				return UrlValidatorHelper.evaluate(triggerPart, currentPageUrl)
 			when "CookieValidator"
 				return CookieValidatorHelper.evaluate(triggerPart, cookieList)
+			when "UserAgentValidator"
+				return UserAgentValidatorHelper.evaluate(triggerPart, userAgent)
 			else
 				return false
 		end
@@ -135,6 +137,26 @@ class CookieValidatorHelper
 				triggerPart["ValueToCompare"])
 		rescue
 			return false
+		end
+	end
+end
+
+class UserAgentValidatorHelper
+	def self.evaluate(triggerPart, userAgent)
+		begin
+			if (!triggerPart.key?("Operator") ||
+				!triggerPart.key?("IsNegative") ||
+				!triggerPart.key?("IsIgnoreCase") ||
+				!triggerPart.key?("ValueToCompare"))
+				return false;
+			end
+
+			return ComparisonOperatorHelper.evaluate(
+				triggerPart["Operator"], 
+				triggerPart["IsNegative"], 
+				triggerPart["IsIgnoreCase"], 
+				userAgent, 
+				triggerPart["ValueToCompare"])
 		end
 	end
 end

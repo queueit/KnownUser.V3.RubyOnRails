@@ -2,6 +2,10 @@ require 'test/unit'
 require 'json'
 require_relative '../KnownUser'
 
+class HttpRequestMock
+	attr_accessor :userAgent
+end
+
 class UserInQueueServiceMock
 	attr_reader :cancelQueueCookieCalls
 	attr_reader :extendQueueCookieCalls
@@ -304,7 +308,7 @@ class TestKnownUser < Test::Unit::TestCase
 		errorThrown = false
         
 		begin
-            KnownUser.validateRequestByIntegrationConfig("", "queueIttoken", nil, "customerId", "secretKey", {})
+            KnownUser.validateRequestByIntegrationConfig("", "queueIttoken", nil, "customerId", "secretKey", {}, HttpRequestMock.new)
 		rescue KnownUserError => err
 			errorThrown = err.message.start_with? "currentUrl can not be nil or empty"
 		end
@@ -316,7 +320,7 @@ class TestKnownUser < Test::Unit::TestCase
 		errorThrown = false
         
 		begin
-            KnownUser.validateRequestByIntegrationConfig("currentUrl", "queueIttoken", nil, "customerId", "secretKey", {})
+            KnownUser.validateRequestByIntegrationConfig("currentUrl", "queueIttoken", nil, "customerId", "secretKey", {}, HttpRequestMock.new)
 		rescue KnownUserError => err
 			errorThrown = err.message.start_with? "integrationsConfigString can not be nil or empty"
 		end
@@ -328,7 +332,7 @@ class TestKnownUser < Test::Unit::TestCase
 		errorThrown = false
         
 		begin
-            KnownUser.validateRequestByIntegrationConfig("currentUrl", "queueIttoken", "not-valid-json", "customerId", "secretKey", {})
+            KnownUser.validateRequestByIntegrationConfig("currentUrl", "queueIttoken", "not-valid-json", "customerId", "secretKey", {}, HttpRequestMock.new)
 		rescue KnownUserError => err
 			errorThrown = err.message.start_with? "integrationConfiguration text was not valid"
 		end
@@ -366,6 +370,13 @@ class TestKnownUser < Test::Unit::TestCase
                         :ValidatorType => "UrlValidator",
                         :IsNegative => false,
                         :IsIgnoreCase => true
+					},					
+					{
+                        :Operator => "Contains",
+                        :ValueToCompare => "googlebot",
+                        :ValidatorType => "UserAgentValidator",
+                        :IsNegative => false,
+                        :IsIgnoreCase => false
                     }
                     ],
                     :LogicalOperator => "And"
@@ -381,9 +392,10 @@ class TestKnownUser < Test::Unit::TestCase
             :PublishDate => "2017-05-15T21:39:12.0076806Z",
             :ConfigDataVersion => "1.0.0.1"
         }
-			
+		mockRequest = HttpRequestMock.new
+		mockRequest.userAgent = 'googlebot'
 		integrationConfigJson = JSON.generate(integrationConfig)
-		KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "token", integrationConfigJson, "id", "key", Hash.new)
+		KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "token", integrationConfigJson, "id", "key", Hash.new, mockRequest)
 
 		assert( userInQueueService.validateRequestCalls[0]["targetUrl"] == "http://test.com?event1=true" )
 		assert( userInQueueService.validateRequestCalls[0]["queueitToken"] == "token" )
@@ -417,7 +429,7 @@ class TestKnownUser < Test::Unit::TestCase
         }
 
 		integrationConfigJson = JSON.generate(integrationConfig)
-        result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", Hash.new)
+        result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", Hash.new, HttpRequestMock.new)
         
 		assert( userInQueueService.validateRequestCalls.length == 0 )
 		assert( !result.doRedirect )
@@ -471,7 +483,7 @@ class TestKnownUser < Test::Unit::TestCase
         }
 			
 		integrationConfigJson = JSON.generate(integrationConfig)
-		KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", Hash.new)
+		KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", Hash.new, HttpRequestMock.new)
 		
 		assert( userInQueueService.validateRequestCalls[0]['targetUrl'] == "http://test.com" )
 	end
@@ -506,7 +518,7 @@ class TestKnownUser < Test::Unit::TestCase
                         :ValidatorType => "UrlValidator",
                         :IsNegative => false,
                         :IsIgnoreCase => true
-                    }
+					}
                     ],
                     :LogicalOperator => "And"
                 }
@@ -520,10 +532,10 @@ class TestKnownUser < Test::Unit::TestCase
             :Version => 3,
             :PublishDate => "2017-05-15T21:39:12.0076806Z",
             :ConfigDataVersion => "1.0.0.1"
-        }
-			
+		}
+
 		integrationConfigJson = JSON.generate(integrationConfig)
-		KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", Hash.new)
+		KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", Hash.new, HttpRequestMock.new)
 		
 		assert( userInQueueService.validateRequestCalls[0]['targetUrl'] == "" )
 	end

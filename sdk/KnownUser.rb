@@ -1,5 +1,4 @@
 require 'json'
-
 require_relative 'Models'
 require_relative 'UserInQueueService'
 require_relative 'UserInQueueStateCookieRepository'
@@ -8,9 +7,8 @@ require_relative 'IntegrationConfigHelpers'
 class KnownUser
 	QUEUEIT_TOKEN_KEY = "queueittoken"
 	
-	@@userInQueueService = nil
-	
-	def self.createUserInQueueService(cookieJar)
+	@@userInQueueService = nil	
+	def self.getUserInQueueService(cookieJar)
 		if (@@userInQueueService == nil)
 			return UserInQueueService.new(UserInQueueStateCookieRepository.new(CookieManager.new(cookieJar)))
 		end
@@ -32,7 +30,7 @@ class KnownUser
 			raise KnownUserError, "eventId can not be nil or empty."
 		end
 		
-		userInQueueService = KnownUser.createUserInQueueService(cookieJar)
+		userInQueueService = KnownUser.getUserInQueueService(cookieJar)
 		userInQueueService.cancelQueueCookie(eventId, cookieDomain)
 	end
 
@@ -50,7 +48,7 @@ class KnownUser
 			raise KnownUserError, "cookieValidityMinute should be integer greater than 0."	
 		end
 
-		userInQueueService = KnownUser.createUserInQueueService(cookieJar)
+		userInQueueService = KnownUser.getUserInQueueService(cookieJar)
 		userInQueueService.extendQueueCookie(eventId, cookieValidityMinute, cookieDomain, secretKey)
 	end
 
@@ -84,11 +82,11 @@ class KnownUser
 			raise KnownUserError, "eventConfig.extendCookieValidity should be valid boolean."
 		end
 
-		userInQueueService = KnownUser.createUserInQueueService(cookieJar)
+		userInQueueService = KnownUser.getUserInQueueService(cookieJar)
 		userInQueueService.validateRequest(targetUrl, queueitToken, eventConfig, customerId, secretKey)
 	end
 
-	def self.validateRequestByIntegrationConfig(currentUrl, queueitToken, integrationsConfigString, customerId, secretKey, cookieJar)
+	def self.validateRequestByIntegrationConfig(currentUrl, queueitToken, integrationsConfigString, customerId, secretKey, cookieJar, request)
 		if(Utils.isNilOrEmpty(currentUrl))
 			raise KnownUserError, "currentUrl can not be nil or empty."
 		end
@@ -103,7 +101,7 @@ class KnownUser
 		begin
 			customerIntegration = JSON.parse(integrationsConfigString)
 			integrationEvaluator = IntegrationEvaluator.new
-			integrationConfig = integrationEvaluator.getMatchedIntegrationConfig(customerIntegration, currentUrl, cookieJar)
+			integrationConfig = integrationEvaluator.getMatchedIntegrationConfig(customerIntegration, currentUrl, cookieJar, request.user_agent)
 
 			if(integrationConfig == nil)
 				return RequestValidationResult.new(nil, nil, nil)
@@ -169,3 +167,6 @@ class CookieManager
 		end		
 	end
 end
+
+
+

@@ -39,7 +39,7 @@ class TestIntegrationEvaluator < Test::Unit::TestCase
 		
 		url = "http://test.testdomain.com:8080/test?q=2";
         testObject = IntegrationEvaluator.new;
-		matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, {})
+		matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, {}, "")
         assert( matchedConfig == nil);
 	end
 
@@ -81,8 +81,57 @@ class TestIntegrationEvaluator < Test::Unit::TestCase
 		
 		url = "http://test.testdomain.com:8080/test?q=2";
         testObject = IntegrationEvaluator.new;
-		matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, { :c2 => "ddd", :c1 => "Value1" })		
+		matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, { :c2 => "ddd", :c1 => "Value1" }, "")		
 		assert( matchedConfig["Name"].eql? "integration1" );
+	end
+
+	def test_getMatchedIntegrationConfig_oneTrigger_and_notmatched_UserAgent
+		integrationConfig = 
+		{ 
+			"Integrations" => 
+			[
+				{
+					"Name" => "integration1",
+					"Triggers" => 
+					[
+						{
+							"LogicalOperator" => "And",
+							"TriggerParts" =>
+							[
+								{
+									"CookieName" => "c1",
+									"Operator" => "Equals",
+									"ValueToCompare" => "value1",
+									"ValidatorType" => "CookieValidator",
+									"IsIgnoreCase" => true,
+									"IsNegative" => false
+								},
+								{
+									"UrlPart" => "PageUrl",
+									"ValidatorType" => "UrlValidator",
+									"ValueToCompare" => "test",
+									"Operator" => "Contains",
+									"IsIgnoreCase" => false,
+									"IsNegative" => false
+								},
+								{
+									"ValidatorType" => "userAgentValidator",
+									"ValueToCompare" => "Googlebot",
+									"Operator" => "Contains",
+									"IsIgnoreCase" => true,
+									"IsNegative" => true
+								}
+							]
+						}
+					]
+				}
+			]
+		}
+		
+		url = "http://test.testdomain.com:8080/test?q=2";
+        testObject = IntegrationEvaluator.new;
+		matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, { :c2 => "ddd", :c1 => "Value1" }, "bot.html google.com googlebot test")		
+		assert( matchedConfig == nil);
 	end
 
 	def test_getMatchedIntegrationConfig_oneTrigger_or_notMatched
@@ -123,7 +172,7 @@ class TestIntegrationEvaluator < Test::Unit::TestCase
 		
 		url = "http://test.testdomain.com:8080/test?q=2";
         testObject = IntegrationEvaluator.new;
-		matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, { :c2 => "ddd", :c1 => "Value1" })		
+		matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, { :c2 => "ddd", :c1 => "Value1" }, "")		
 		assert( matchedConfig == nil );
 	end
 
@@ -165,7 +214,7 @@ class TestIntegrationEvaluator < Test::Unit::TestCase
 		
 		url = "http://test.testdomain.com:8080/test?q=2";
         testObject = IntegrationEvaluator.new;
-		matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, { :c2 => "ddd", :c1 => "Value1" })		
+		matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, { :c2 => "ddd", :c1 => "Value1" }, "")		
 		assert( matchedConfig["Name"].eql? "integration1" );
 	end
 
@@ -221,7 +270,7 @@ class TestIntegrationEvaluator < Test::Unit::TestCase
 		
 		url = "http://test.testdomain.com:8080/test?q=2";
         testObject = IntegrationEvaluator.new;
-		matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, { :c2 => "ddd", :c1 => "Value1" })		
+		matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, { :c2 => "ddd", :c1 => "Value1" }, "")		
 		assert( matchedConfig["Name"].eql? "integration1" );	
 	end
 
@@ -295,7 +344,7 @@ class TestIntegrationEvaluator < Test::Unit::TestCase
 		
 		url = "http://test.testdomain.com:8080/test?q=2";
         testObject = IntegrationEvaluator.new;
-		matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, { :c2 => "ddd", :c1 => "Value1" })		
+		matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, { :c2 => "ddd", :c1 => "Value1" }, "")		
 		assert( matchedConfig["Name"].eql? "integration1" );			
 	end
 end
@@ -344,6 +393,47 @@ class TestUrlValidatorHelper < Test::Unit::TestCase
 	end
 end
 
+class TestUserAgentValidatorHelper < Test::Unit::TestCase
+	def test_evaluate 
+		triggerPart = 
+		{
+			"Operator" => "Contains",
+			"IsIgnoreCase" => false,
+			"IsNegative" => false,
+			"ValueToCompare" => "googlebot"				
+		}
+		assert( !UserAgentValidatorHelper.evaluate(triggerPart, "Googlebot sample useraagent") )
+		
+		triggerPart = 
+		{
+			"Operator" => "Equals",
+			"IsIgnoreCase"=> true,
+			"IsNegative"=> true,
+			"ValueToCompare"=> "googlebot"				
+		}
+		assert( UserAgentValidatorHelper.evaluate(triggerPart, "oglebot sample useraagent") )
+   
+		triggerPart = 
+		{
+			
+			"Operator" => "Contains",
+			"IsIgnoreCase" => false,
+			"IsNegative" => true,
+			"ValueToCompare" => "googlebot"				
+		}
+		assert(!UserAgentValidatorHelper.evaluate(triggerPart, "googlebot") )
+		
+		triggerPart = 
+		{
+			
+			"Operator" => "Contains",
+			"IsIgnoreCase" => true,
+			"IsNegative" => false,
+			"ValueToCompare" => "googlebot"				
+		}
+		assert( UserAgentValidatorHelper.evaluate(triggerPart, "Googlebot") )
+	end
+end
 class TestCookieValidatorHelper < Test::Unit::TestCase
 	def test_evaluate
 		triggerPart = 
