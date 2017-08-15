@@ -73,7 +73,8 @@ class ResourceController < ApplicationController
 				configJson,
 				customerId,
 				secretKey,
-				cookies
+				cookies,
+				request
 			)
 
 			if(validationResult.doRedirect)			
