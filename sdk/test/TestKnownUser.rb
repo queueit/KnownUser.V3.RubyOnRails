@@ -3,7 +3,7 @@ require 'json'
 require_relative '../KnownUser'
 
 class HttpRequestMock
-	attr_accessor :userAgent
+	attr_accessor :user_agent
 end
 
 class UserInQueueServiceMock
@@ -393,7 +393,7 @@ class TestKnownUser < Test::Unit::TestCase
             :ConfigDataVersion => "1.0.0.1"
         }
 		mockRequest = HttpRequestMock.new
-		mockRequest.userAgent = 'googlebot'
+		mockRequest.user_agent = 'googlebot'
 		integrationConfigJson = JSON.generate(integrationConfig)
 		KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "token", integrationConfigJson, "id", "key", Hash.new, mockRequest)
 
