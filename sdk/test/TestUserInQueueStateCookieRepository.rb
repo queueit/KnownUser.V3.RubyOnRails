@@ -116,18 +116,6 @@ class TestUserInQueueStateCookieRepository < Test::Unit::TestCase
         assert(!state2.isValid);
     end
 
-    def test_cancelQueueCookie_CookieDoesNotExist_Test() 
-        eventId = "event1";
-        secretKey = "4e1deweb821-a82ew5-49da-acdqq0-5d3476f2068db";
-        cookieDomain = ".test.com";
-        queueId = "queueId";
-        cookieManager =CookieManagerMockClass.new();
-        testObject =UserInQueueStateCookieRepository.new(cookieManager);
-        testObject.store("event2", queueId, true, 20, cookieDomain, secretKey);
-        testObject.cancelQueueCookie(eventId, cookieDomain);
-        assert(cookieManager.setCookieCalls.length == 1);
-    end
-
     def test_cancelQueueCookie_Test()
         eventId = "event1";
         secretKey = "4e1deweb821-a82ew5-49da-acdqq0-5d3476f2068db";

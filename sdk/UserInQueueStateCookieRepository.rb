@@ -11,9 +11,7 @@ class UserInQueueStateCookieRepository
 
     def cancelQueueCookie(eventId, cookieDomain) 
 		cookieKey = self.class.getCookieKey(eventId)
-		if (!@cookieManager.getCookie(cookieKey).nil?)
-			@cookieManager.setCookie(cookieKey, nil, -1, cookieDomain)
-		end
+		@cookieManager.setCookie(cookieKey, nil, -1, cookieDomain)		
     end
 
     def store(eventId, queueId, isStateExtendable, cookieValidityMinute, cookieDomain, secretKey)

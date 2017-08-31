@@ -9,6 +9,7 @@ class QueueUrlParams
 	EXTENDABLE_COOKIE_KEY = "ce";
     HASH_KEY = "h";
     QUEUE_ID_KEY = "q";
+	REDIRECT_TYPE_KEY = "rt"
 
 	attr_accessor :timeStamp
 	attr_accessor :eventId
@@ -18,6 +19,7 @@ class QueueUrlParams
 	attr_accessor :queueITToken
 	attr_accessor :queueITTokenWithoutHash
 	attr_accessor :queueId
+	attr_accessor :redirectType
 
 	def initialize
 		@timeStamp = 0
@@ -28,6 +30,7 @@ class QueueUrlParams
 		@queueITToken = ""
 		@queueITTokenWithoutHash = ""
 		@queueId = ""
+		@redirectType = nil
 	end
 
 	def self.extractQueueParams(queueitToken)
@@ -65,6 +68,8 @@ class QueueUrlParams
 						result.hashCode = paramNameValueArr[1]
 					when QUEUE_ID_KEY
 						result.queueId = paramNameValueArr[1]
+					when REDIRECT_TYPE_KEY
+						result.redirectType = paramNameValueArr[1] 
 				end		
 			end
 			result.queueITTokenWithoutHash = result.queueITToken.gsub((KEY_VALUE_SEPARATOR_GROUP_CHAR + HASH_KEY + KEY_VALUE_SEPARATOR_CHAR + result.hashCode), "")		

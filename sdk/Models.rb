@@ -1,10 +1,37 @@
 class Utils
 	def self.isNilOrEmpty(value)
-		return !value || value.empty?
+		return !value || value.to_s == ''
+	end
+	def self.toString(value)
+		if(value == nil)
+			return ''
+		end
+		return value.to_s
 	end
 end
 
-class EventConfig
+class CancelEventConfig
+	attr_accessor :eventId	
+	attr_accessor :queueDomain
+	attr_accessor :cookieDomain
+	attr_accessor :version
+
+	def initialize
+		@eventId = nil
+		@queueDomain = nil
+		@cookieDomain = nil
+		@version = nil
+	end
+
+	def toString
+		return "EventId:" + Utils.toString(eventId) + 
+			   "&Version:" + Utils.toString(version) +
+			   "&QueueDomain:" + Utils.toString(queueDomain) + 
+			   "&CookieDomain:" + Utils.toString(cookieDomain)
+	end
+end
+
+class QueueEventConfig
 	attr_accessor :eventId	
 	attr_accessor :layoutName
 	attr_accessor :culture
@@ -24,14 +51,27 @@ class EventConfig
 		@cookieDomain = nil
 		@version = nil
 	end
+
+	def toString
+		return "EventId:" + Utils.toString(eventId) + 
+			   "&Version:" + Utils.toString(version) +
+			   "&QueueDomain:" + Utils.toString(queueDomain) + 
+			   "&CookieDomain:" + Utils.toString(cookieDomain) + 
+			   "&ExtendCookieValidity:" + Utils.toString(extendCookieValidity) +
+			   "&CookieValidityMinute:" + Utils.toString(cookieValidityMinute) + 
+			   "&LayoutName:" + Utils.toString(layoutName) + 
+			   "&Culture:" + Utils.toString(culture)
+	end
 end
 
 class RequestValidationResult
+	attr_reader :actionType
 	attr_reader :eventId
 	attr_reader :queueId
 	attr_reader :redirectUrl
 
-	def initialize(eventId, queueId, redirectUrl)
+	def initialize(actionType, eventId, queueId, redirectUrl)
+		@actionType = actionType
 		@eventId = eventId
 		@queueId = queueId
 		@redirectUrl = redirectUrl
@@ -46,4 +86,9 @@ class KnownUserError < StandardError
 	def initialize(message)
 		super(message)
 	end
+end
+
+class ActionTypes
+	CANCEL = "Cancel"
+	QUEUE = "Queue"
 end
