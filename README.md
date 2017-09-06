@@ -42,7 +42,7 @@ Read more about how *[here](https://github.com/queueit/KnownUser.V3.RubyOnRails/
 The configuration should be downloaded and cached for 5-10 minutes. 
 
 ### 2. Validate the `queueittoken` and store a session cookie
-To validate that the user has been through the queue, use the `KnownUser.validateRequestByIntegrationConfig` method. 
+To validate that the user has been through the queue, use the `QueueIT::KnownUser.validateRequestByIntegrationConfig` method. 
 This call will validate the timestamp and hash and if valid create a "QueueITAccepted-SDFrts345E-V3_[EventId]" cookie with a TTL as specified in the configuration.
 If the timestamp or hash is invalid, the user is send back to the queue.
 
@@ -66,10 +66,10 @@ class ResourceController < ApplicationController
 			secretKey = "" # Your 72 char secret key as specified in Go Queue-it self-service platform
 		
 			requestUrl = request.original_url
-			queueitToken = request.query_parameters[KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
+			queueitToken = request.query_parameters[QueueIT::KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
 
 			# Verify if the user has been through the queue
-			validationResult = KnownUser.validateRequestByIntegrationConfig(
+			validationResult = QueueIT::KnownUser.validateRequestByIntegrationConfig(
 				requestUrl,
 				queueitToken,
 				configJson,
@@ -84,7 +84,7 @@ class ResourceController < ApplicationController
 				redirect_to validationResult.redirectUrl
 			else
 				# Request can continue - we remove queueittoken form querystring parameter to avoid sharing of user specific token				
-				pattern = Regexp.new("([\\?&])(" + KnownUser::QUEUEIT_TOKEN_KEY + "=[^&]*)", Regexp::IGNORECASE)
+				pattern = Regexp.new("([\\?&])(" + QueueIT::KnownUser::QUEUEIT_TOKEN_KEY + "=[^&]*)", Regexp::IGNORECASE)
 				requestUrlWithoutToken = requestUrl.gsub(pattern, '')
 				
 				if(requestUrl != requestUrlWithoutToken)
@@ -110,7 +110,7 @@ If your application server (maybe due to security reasons) is not allowed to do 
 1. Manually download the configuration file from Queue-it Go self-service portal, save it on your application server and load it from local disk
 2. Use an internal gateway server to download the configuration file and save to application server
 3. Specify the configuration in code without using the Trigger/Action paradigm. In this case it is important *only to queue-up page requests* and not requests for resources or AJAX calls. 
-This can be done by adding custom filtering logic before caling the `KnownUser.validateRequestByLocalEventConfig` method. 
+This can be done by adding custom filtering logic before caling the `QueueIT::KnownUser.validateRequestByLocalEventConfig` method. 
 
 The following is an example of how to specify the configuration in code:
 
@@ -120,7 +120,7 @@ class ResourceController < ApplicationController
 		begin
 			customerId = "" # Your Queue-it customer ID
 			secretKey = "" # Your 72 char secret key as specified in Go Queue-it self-service platform		
-			eventConfig = EventConfig.new
+			eventConfig = QueueIT::EventConfig.new
 			eventConfig.eventId = "" # ID of the queue to use
 			eventConfig.queueDomain = "xxx.queue-it.net" # Domian name of the queue - usually in the format [CustomerId].queue-it.net
 			# eventConfig.cookieDomain = ".my-shop.com" # Optional - Domain name where the Queue-it session cookie should be saved
@@ -130,10 +130,10 @@ class ResourceController < ApplicationController
 			# eventConfig.layoutName = "NameOfYourCustomLayout" # Optional - Name of the queue ticket layout - e.g. "Default layout by Queue-it". Default is to take what is specified on the Event
 
 			requestUrl = request.original_url
-			queueitToken = request.query_parameters[KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
+			queueitToken = request.query_parameters[QueueIT::KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
 
 			# Verify if the user has been through the queue
-			validationResult = KnownUser.validateRequestByLocalEventConfig(
+			validationResult = QueueIT::KnownUser.validateRequestByLocalEventConfig(
 				requestUrl,
 				queueitToken,
 				eventConfig,
@@ -147,7 +147,7 @@ class ResourceController < ApplicationController
 				redirect_to validationResult.redirectUrl
 			else
 				# Request can continue - we remove queueittoken form querystring parameter to avoid sharing of user specific token				
-				pattern = Regexp.new("([\\?&])(" + KnownUser::QUEUEIT_TOKEN_KEY + "=[^&]*)", Regexp::IGNORECASE)
+				pattern = Regexp.new("([\\?&])(" + QueueIT::KnownUser::QUEUEIT_TOKEN_KEY + "=[^&]*)", Regexp::IGNORECASE)
 				requestUrlWithoutToken = requestUrl.gsub(pattern, '')
 				
 				if(requestUrl != requestUrlWithoutToken)
