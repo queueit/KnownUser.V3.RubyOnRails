@@ -2,841 +2,843 @@ require 'test/unit'
 require 'json'
 require_relative '../KnownUser'
 
-class HttpRequestMock
-	attr_accessor :user_agent
-	attr_accessor :original_url
-end
-
-class UserInQueueServiceMock
-	attr_reader :extendQueueCookieCalls
-	attr_reader :validateQueueRequestCalls
-	attr_reader :validateCancelRequestCalls
-
-	def initialize
-		@extendQueueCookieCalls = {}
-		@validateQueueRequestCalls = {}
-		@validateCancelRequestCalls = {}
+module QueueIT
+	class HttpRequestMock
+		attr_accessor :user_agent
+		attr_accessor :original_url
 	end
+
+	class UserInQueueServiceMock
+		attr_reader :extendQueueCookieCalls
+		attr_reader :validateQueueRequestCalls
+		attr_reader :validateCancelRequestCalls
+
+		def initialize
+			@extendQueueCookieCalls = {}
+			@validateQueueRequestCalls = {}
+			@validateCancelRequestCalls = {}
+		end
 	
-	def extendQueueCookie(eventId, cookieValidityMinute, cookieDomain, secretKey)		
-		@extendQueueCookieCalls[@extendQueueCookieCalls.length] = {
-            "eventId" => eventId,
-			"cookieValidityMinute" => cookieValidityMinute,
-            "cookieDomain" => cookieDomain,
-			"secretKey" => secretKey
-        }
-	end
-
-	def validateQueueRequest(targetUrl, queueitToken, config, customerId, secretKey)
-		@validateQueueRequestCalls[@validateQueueRequestCalls.length] = {
-            "targetUrl" => targetUrl,
-			"queueitToken" => queueitToken,
-            "config" => config,
-			"customerId" => customerId,
-            "secretKey" => secretKey
-        }
-	end
-
-	def validateCancelRequest(targetUrl, config, customerId, secretKey)
-		@validateCancelRequestCalls[@validateQueueRequestCalls.length] = {
-            "targetUrl" => targetUrl,
-			"config" => config,
-			"customerId" => customerId,
-            "secretKey" => secretKey
-        }
-	end
-end
-
-class QueueITTokenGenerator
-	def self.generateDebugToken(eventId, secretKey)
-        tokenWithoutHash = (QueueUrlParams::EVENT_ID_KEY + QueueUrlParams::KEY_VALUE_SEPARATOR_CHAR + eventId) + QueueUrlParams::KEY_VALUE_SEPARATOR_GROUP_CHAR + (QueueUrlParams::REDIRECT_TYPE_KEY + QueueUrlParams::KEY_VALUE_SEPARATOR_CHAR + "debug")
-        hash = OpenSSL::HMAC.hexdigest('sha256', secretKey, tokenWithoutHash)
-		token = tokenWithoutHash + QueueUrlParams::KEY_VALUE_SEPARATOR_GROUP_CHAR + QueueUrlParams::HASH_KEY + QueueUrlParams::KEY_VALUE_SEPARATOR_CHAR + hash
-        return token
-	end
-end
-
-class TestKnownUser < Test::Unit::TestCase
-	def test_cancelRequestByLocalConfig	
-		userInQueueService = UserInQueueServiceMock.new 
-		KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
-		
-		cancelConfig = CancelEventConfig.new
-		cancelConfig.eventId = "eventId"
-		cancelConfig.queueDomain = "queueDomain"
-		cancelConfig.version = 1
-		cancelConfig.cookieDomain = "cookieDomain"
-
-		KnownUser.cancelRequestByLocalConfig("targetUrl", "token", cancelConfig, "customerId", "secretKey", nil, HttpRequestMock.new)
-
-		assert( userInQueueService.validateCancelRequestCalls[0]["targetUrl"] == "targetUrl" )
-		assert( userInQueueService.validateCancelRequestCalls[0]["config"] == cancelConfig )
-		assert( userInQueueService.validateCancelRequestCalls[0]["customerId"] == "customerId" )
-		assert( userInQueueService.validateCancelRequestCalls[0]["secretKey"] == "secretKey" )
-	end
-
-	def test_cancelRequestByLocalConfig_setDebugCookie
-		userInQueueService = UserInQueueServiceMock.new 
-		KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
-		
-		cancelConfig = CancelEventConfig.new
-		cancelConfig.eventId = "eventId"
-		cancelConfig.queueDomain = "queueDomain"
-		cancelConfig.version = 1
-		cancelConfig.cookieDomain = "cookieDomain"
-
-		requestMock = HttpRequestMock.new
-		requestMock.original_url = "original_url"
-
-		cookieJar = {}
-		secretKey = "secretKey"
-		queueitToken = QueueITTokenGenerator::generateDebugToken("eventId", secretKey)
-		
-		KnownUser.cancelRequestByLocalConfig("url", queueitToken, cancelConfig, "customerId", secretKey, cookieJar, requestMock)
-
-		expectedCookieValue = "targetUrl=url&queueitToken=" + queueitToken + "&OriginalURL=original_url&cancelConfig=EventId:eventId&Version:1&QueueDomain:queueDomain&CookieDomain:cookieDomain"
-        
-        assert( cookieJar.length == 1 );
-		assert( cookieJar.key?(KnownUser::QUEUEIT_DEBUG_KEY.to_sym) )
-		assert( expectedCookieValue.eql?(cookieJar[KnownUser::QUEUEIT_DEBUG_KEY.to_sym]["value".to_sym]) )
-	end
-
-	def test_cancelRequestByLocalConfig_nil_QueueDomain
-		errorThrown = false
-        
-		cancelConfig = CancelEventConfig.new
-		cancelConfig.eventId = "eventId"
-		
-		begin
-            KnownUser.cancelRequestByLocalConfig("targetUrl", "token", cancelConfig, "customerId", "secretKey", nil, HttpRequestMock.new)
-		rescue KnownUserError => err
-			errorThrown = err.message.eql? "cancelConfig.queueDomain can not be nil or empty."
+		def extendQueueCookie(eventId, cookieValidityMinute, cookieDomain, secretKey)		
+			@extendQueueCookieCalls[@extendQueueCookieCalls.length] = {
+				"eventId" => eventId,
+				"cookieValidityMinute" => cookieValidityMinute,
+				"cookieDomain" => cookieDomain,
+				"secretKey" => secretKey
+			}
 		end
-		
-		assert( errorThrown )
+
+		def validateQueueRequest(targetUrl, queueitToken, config, customerId, secretKey)
+			@validateQueueRequestCalls[@validateQueueRequestCalls.length] = {
+				"targetUrl" => targetUrl,
+				"queueitToken" => queueitToken,
+				"config" => config,
+				"customerId" => customerId,
+				"secretKey" => secretKey
+			}
+		end
+
+		def validateCancelRequest(targetUrl, config, customerId, secretKey)
+			@validateCancelRequestCalls[@validateQueueRequestCalls.length] = {
+				"targetUrl" => targetUrl,
+				"config" => config,
+				"customerId" => customerId,
+				"secretKey" => secretKey
+			}
+		end
 	end
+
+	class QueueITTokenGenerator
+		def self.generateDebugToken(eventId, secretKey)
+			tokenWithoutHash = (QueueUrlParams::EVENT_ID_KEY + QueueUrlParams::KEY_VALUE_SEPARATOR_CHAR + eventId) + QueueUrlParams::KEY_VALUE_SEPARATOR_GROUP_CHAR + (QueueUrlParams::REDIRECT_TYPE_KEY + QueueUrlParams::KEY_VALUE_SEPARATOR_CHAR + "debug")
+			hash = OpenSSL::HMAC.hexdigest('sha256', secretKey, tokenWithoutHash)
+			token = tokenWithoutHash + QueueUrlParams::KEY_VALUE_SEPARATOR_GROUP_CHAR + QueueUrlParams::HASH_KEY + QueueUrlParams::KEY_VALUE_SEPARATOR_CHAR + hash
+			return token
+		end
+	end
+
+	class TestKnownUser < Test::Unit::TestCase
+		def test_cancelRequestByLocalConfig	
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+		
+			cancelConfig = CancelEventConfig.new
+			cancelConfig.eventId = "eventId"
+			cancelConfig.queueDomain = "queueDomain"
+			cancelConfig.version = 1
+			cancelConfig.cookieDomain = "cookieDomain"
+
+			KnownUser.cancelRequestByLocalConfig("targetUrl", "token", cancelConfig, "customerId", "secretKey", nil, HttpRequestMock.new)
+
+			assert( userInQueueService.validateCancelRequestCalls[0]["targetUrl"] == "targetUrl" )
+			assert( userInQueueService.validateCancelRequestCalls[0]["config"] == cancelConfig )
+			assert( userInQueueService.validateCancelRequestCalls[0]["customerId"] == "customerId" )
+			assert( userInQueueService.validateCancelRequestCalls[0]["secretKey"] == "secretKey" )
+		end
+
+		def test_cancelRequestByLocalConfig_setDebugCookie
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+		
+			cancelConfig = CancelEventConfig.new
+			cancelConfig.eventId = "eventId"
+			cancelConfig.queueDomain = "queueDomain"
+			cancelConfig.version = 1
+			cancelConfig.cookieDomain = "cookieDomain"
+
+			requestMock = HttpRequestMock.new
+			requestMock.original_url = "original_url"
+
+			cookieJar = {}
+			secretKey = "secretKey"
+			queueitToken = QueueITTokenGenerator::generateDebugToken("eventId", secretKey)
+		
+			KnownUser.cancelRequestByLocalConfig("url", queueitToken, cancelConfig, "customerId", secretKey, cookieJar, requestMock)
+
+			expectedCookieValue = "targetUrl=url&queueitToken=" + queueitToken + "&OriginalURL=original_url&cancelConfig=EventId:eventId&Version:1&QueueDomain:queueDomain&CookieDomain:cookieDomain"
+        
+			assert( cookieJar.length == 1 );
+			assert( cookieJar.key?(KnownUser::QUEUEIT_DEBUG_KEY.to_sym) )
+			assert( expectedCookieValue.eql?(cookieJar[KnownUser::QUEUEIT_DEBUG_KEY.to_sym]["value".to_sym]) )
+		end
+
+		def test_cancelRequestByLocalConfig_nil_QueueDomain
+			errorThrown = false
+        
+			cancelConfig = CancelEventConfig.new
+			cancelConfig.eventId = "eventId"
+		
+			begin
+				KnownUser.cancelRequestByLocalConfig("targetUrl", "token", cancelConfig, "customerId", "secretKey", nil, HttpRequestMock.new)
+			rescue KnownUserError => err
+				errorThrown = err.message.eql? "cancelConfig.queueDomain can not be nil or empty."
+			end
+		
+			assert( errorThrown )
+		end
 	
-	def test_cancelRequestByLocalConfig_nil_EventId
-		errorThrown = false
+		def test_cancelRequestByLocalConfig_nil_EventId
+			errorThrown = false
         
-		cancelConfig = CancelEventConfig.new
-		cancelConfig.queueDomain = "queueDomain"
+			cancelConfig = CancelEventConfig.new
+			cancelConfig.queueDomain = "queueDomain"
 
-		begin
-            KnownUser.cancelRequestByLocalConfig("targetUrl", "token", cancelConfig, "customerId", "secretKey", nil, HttpRequestMock.new)
-		rescue KnownUserError => err
-			errorThrown = err.message.eql? "cancelConfig.eventId can not be nil or empty."
+			begin
+				KnownUser.cancelRequestByLocalConfig("targetUrl", "token", cancelConfig, "customerId", "secretKey", nil, HttpRequestMock.new)
+			rescue KnownUserError => err
+				errorThrown = err.message.eql? "cancelConfig.eventId can not be nil or empty."
+			end
+		
+			assert( errorThrown )
 		end
-		
-		assert( errorThrown )
-	end
 
-	def test_cancelRequestByLocalConfig_nil_CancelConfig
-		errorThrown = false
+		def test_cancelRequestByLocalConfig_nil_CancelConfig
+			errorThrown = false
         
-		begin
-            KnownUser.cancelRequestByLocalConfig("targetUrl", "token", nil, "customerId", "secretKey", nil, HttpRequestMock.new)
-		rescue KnownUserError => err
-			errorThrown = err.message.eql? "cancelConfig can not be nil."
+			begin
+				KnownUser.cancelRequestByLocalConfig("targetUrl", "token", nil, "customerId", "secretKey", nil, HttpRequestMock.new)
+			rescue KnownUserError => err
+				errorThrown = err.message.eql? "cancelConfig can not be nil."
+			end
+		
+			assert( errorThrown )
 		end
-		
-		assert( errorThrown )
-	end
 
-	def test_cancelRequestByLocalConfig_nil_CustomerId
-		errorThrown = false
+		def test_cancelRequestByLocalConfig_nil_CustomerId
+			errorThrown = false
         
-		begin
-            KnownUser.cancelRequestByLocalConfig("targetUrl", "token", CancelEventConfig.new, nil, "secretKey", nil, HttpRequestMock.new)
-		rescue KnownUserError => err
-			errorThrown = err.message.eql? "customerId can not be nil or empty."
+			begin
+				KnownUser.cancelRequestByLocalConfig("targetUrl", "token", CancelEventConfig.new, nil, "secretKey", nil, HttpRequestMock.new)
+			rescue KnownUserError => err
+				errorThrown = err.message.eql? "customerId can not be nil or empty."
+			end
+		
+			assert( errorThrown )
 		end
-		
-		assert( errorThrown )
-	end
 
-	def test_cancelRequestByLocalConfig_nil_SeceretKey
-		errorThrown = false
+		def test_cancelRequestByLocalConfig_nil_SeceretKey
+			errorThrown = false
         
-		begin
-            KnownUser.cancelRequestByLocalConfig("targetUrl", "token", CancelEventConfig.new, "customerId", nil, nil, HttpRequestMock.new)
-		rescue KnownUserError => err
-			errorThrown = err.message.eql? "secretKey can not be nil or empty."
+			begin
+				KnownUser.cancelRequestByLocalConfig("targetUrl", "token", CancelEventConfig.new, "customerId", nil, nil, HttpRequestMock.new)
+			rescue KnownUserError => err
+				errorThrown = err.message.eql? "secretKey can not be nil or empty."
+			end
+		
+			assert( errorThrown )
 		end
-		
-		assert( errorThrown )
-	end
 
-	def test_cancelRequestByLocalConfig_nil_TargetUrl
-		errorThrown = false
+		def test_cancelRequestByLocalConfig_nil_TargetUrl
+			errorThrown = false
         
-		begin
-            KnownUser.cancelRequestByLocalConfig(nil, "token", CancelEventConfig.new, "customerId", nil, nil, HttpRequestMock.new)
-		rescue KnownUserError => err
-			errorThrown = err.message.eql? "targetUrl can not be nil or empty."
+			begin
+				KnownUser.cancelRequestByLocalConfig(nil, "token", CancelEventConfig.new, "customerId", nil, nil, HttpRequestMock.new)
+			rescue KnownUserError => err
+				errorThrown = err.message.eql? "targetUrl can not be nil or empty."
+			end
+		
+			assert( errorThrown )	
 		end
-		
-		assert( errorThrown )	
-	end
 
-	def test_extendQueueCookie_nil_EventId
-		errorThrown = false
+		def test_extendQueueCookie_nil_EventId
+			errorThrown = false
         
-		begin
-            KnownUser.extendQueueCookie(nil, 10, "cookieDomain", "secretkey", {})
-		rescue KnownUserError => err
-			errorThrown = err.message.eql? "eventId can not be nil or empty."
+			begin
+				KnownUser.extendQueueCookie(nil, 10, "cookieDomain", "secretkey", {})
+			rescue KnownUserError => err
+				errorThrown = err.message.eql? "eventId can not be nil or empty."
+			end
+		
+			assert( errorThrown )
 		end
-		
-		assert( errorThrown )
-	end
 
-	def test_extendQueueCookie_nil_SecretKey
-		errorThrown = false
+		def test_extendQueueCookie_nil_SecretKey
+			errorThrown = false
         
-		begin
-            KnownUser.extendQueueCookie("eventId", 10, "cookieDomain", nil, {})
-		rescue KnownUserError => err
-			errorThrown = err.message.eql? "secretKey can not be nil or empty."
+			begin
+				KnownUser.extendQueueCookie("eventId", 10, "cookieDomain", nil, {})
+			rescue KnownUserError => err
+				errorThrown = err.message.eql? "secretKey can not be nil or empty."
+			end
+		
+			assert( errorThrown )
 		end
-		
-		assert( errorThrown )
-	end
 
-	def test_extendQueueCookie_Invalid_CookieValidityMinute
-		errorThrown = false
+		def test_extendQueueCookie_Invalid_CookieValidityMinute
+			errorThrown = false
         
-		begin
-            KnownUser.extendQueueCookie("eventId", "invalidInt", "cookieDomain", "secrettKey", {})
-		rescue KnownUserError => err
-			errorThrown = err.message.eql? "cookieValidityMinute should be integer greater than 0."
+			begin
+				KnownUser.extendQueueCookie("eventId", "invalidInt", "cookieDomain", "secrettKey", {})
+			rescue KnownUserError => err
+				errorThrown = err.message.eql? "cookieValidityMinute should be integer greater than 0."
+			end
+		
+			assert( errorThrown )
 		end
-		
-		assert( errorThrown )
-	end
 
-	def test_extendQueueCookie_Negative_CookieValidityMinute
-		errorThrown = false
+		def test_extendQueueCookie_Negative_CookieValidityMinute
+			errorThrown = false
         
-		begin
-            KnownUser.extendQueueCookie("eventId", -1, "cookieDomain", "secrettKey", {})
-		rescue KnownUserError => err
-			errorThrown = err.message.eql? "cookieValidityMinute should be integer greater than 0."
+			begin
+				KnownUser.extendQueueCookie("eventId", -1, "cookieDomain", "secrettKey", {})
+			rescue KnownUserError => err
+				errorThrown = err.message.eql? "cookieValidityMinute should be integer greater than 0."
+			end
+		
+			assert( errorThrown )
 		end
-		
-		assert( errorThrown )
-	end
 
-	def test_extendQueueCookie
-		userInQueueService = UserInQueueServiceMock.new 
-		KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)		
+		def test_extendQueueCookie
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)		
 		
-		KnownUser.extendQueueCookie("evtId", 10, "domain", "key", {})
+			KnownUser.extendQueueCookie("evtId", 10, "domain", "key", {})
 		
-		assert( userInQueueService.extendQueueCookieCalls[0]["eventId"] == "evtId" )
-		assert( userInQueueService.extendQueueCookieCalls[0]["cookieValidityMinute"] == 10 )
-		assert( userInQueueService.extendQueueCookieCalls[0]["cookieDomain"] == "domain" )
-		assert( userInQueueService.extendQueueCookieCalls[0]["secretKey"] == "key" )		
-	end
-
-	def test_resolveQueueRequestByLocalConfig_empty_eventId
-		queueConfig = QueueEventConfig.new
-		queueConfig.cookieDomain = "cookieDomain"
-        queueConfig.layoutName = "layoutName"
-        queueConfig.culture = "culture"
-        #queueConfig.eventId = "eventId"
-        queueConfig.queueDomain = "queueDomain"
-        queueConfig.extendCookieValidity = true
-        queueConfig.cookieValidityMinute = 10
-        queueConfig.version = 12
-
-		errorThrown = false
-        
-		begin
-            KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerid", "secretkey", {}, HttpRequestMock.new)
-		rescue KnownUserError => err
-			errorThrown = err.message.eql? "queueConfig.eventId can not be nil or empty."
+			assert( userInQueueService.extendQueueCookieCalls[0]["eventId"] == "evtId" )
+			assert( userInQueueService.extendQueueCookieCalls[0]["cookieValidityMinute"] == 10 )
+			assert( userInQueueService.extendQueueCookieCalls[0]["cookieDomain"] == "domain" )
+			assert( userInQueueService.extendQueueCookieCalls[0]["secretKey"] == "key" )		
 		end
-		
-		assert( errorThrown )
-	end
 
-	def test_resolveQueueRequestByLocalConfig_empty_secretKey
-		queueConfig = QueueEventConfig.new
-		queueConfig.cookieDomain = "cookieDomain"
-        queueConfig.layoutName = "layoutName"
-        queueConfig.culture = "culture"
-        queueConfig.eventId = "eventId"
-        queueConfig.queueDomain = "queueDomain"
-        queueConfig.extendCookieValidity = true
-        queueConfig.cookieValidityMinute = 10
-        queueConfig.version = 12
+		def test_resolveQueueRequestByLocalConfig_empty_eventId
+			queueConfig = QueueEventConfig.new
+			queueConfig.cookieDomain = "cookieDomain"
+			queueConfig.layoutName = "layoutName"
+			queueConfig.culture = "culture"
+			#queueConfig.eventId = "eventId"
+			queueConfig.queueDomain = "queueDomain"
+			queueConfig.extendCookieValidity = true
+			queueConfig.cookieValidityMinute = 10
+			queueConfig.version = 12
 
-		errorThrown = false
+			errorThrown = false
         
-		begin
-            KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerid", nil, {}, HttpRequestMock.new)
-		rescue KnownUserError => err
-			errorThrown = err.message.eql? "secretKey can not be nil or empty."
+			begin
+				KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerid", "secretkey", {}, HttpRequestMock.new)
+			rescue KnownUserError => err
+				errorThrown = err.message.eql? "queueConfig.eventId can not be nil or empty."
+			end
+		
+			assert( errorThrown )
 		end
-		
-		assert( errorThrown )
-	end
 
-	def test_resolveQueueRequestByLocalConfig_empty_queueDomain
-		queueConfig = QueueEventConfig.new
-		queueConfig.cookieDomain = "cookieDomain"
-        queueConfig.layoutName = "layoutName"
-        queueConfig.culture = "culture"
-        queueConfig.eventId = "eventId"
-        #queueConfig.queueDomain = "queueDomain"
-        queueConfig.extendCookieValidity = true
-        queueConfig.cookieValidityMinute = 10
-        queueConfig.version = 12
+		def test_resolveQueueRequestByLocalConfig_empty_secretKey
+			queueConfig = QueueEventConfig.new
+			queueConfig.cookieDomain = "cookieDomain"
+			queueConfig.layoutName = "layoutName"
+			queueConfig.culture = "culture"
+			queueConfig.eventId = "eventId"
+			queueConfig.queueDomain = "queueDomain"
+			queueConfig.extendCookieValidity = true
+			queueConfig.cookieValidityMinute = 10
+			queueConfig.version = 12
 
-		errorThrown = false
+			errorThrown = false
         
-		begin
-            KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerid", "secretkey", {}, HttpRequestMock.new)
-		rescue KnownUserError => err
-			errorThrown = err.message.eql? "queueConfig.queueDomain can not be nil or empty."
+			begin
+				KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerid", nil, {}, HttpRequestMock.new)
+			rescue KnownUserError => err
+				errorThrown = err.message.eql? "secretKey can not be nil or empty."
+			end
+		
+			assert( errorThrown )
 		end
-		
-		assert( errorThrown )
-	end
 
-	def test_resolveQueueRequestByLocalConfig_empty_customerId
-		queueConfig = QueueEventConfig.new
-		queueConfig.cookieDomain = "cookieDomain"
-        queueConfig.layoutName = "layoutName"
-        queueConfig.culture = "culture"
-        queueConfig.eventId = "eventId"
-        queueConfig.queueDomain = "queueDomain"
-        queueConfig.extendCookieValidity = true
-        queueConfig.cookieValidityMinute = 10
-        queueConfig.version = 12
+		def test_resolveQueueRequestByLocalConfig_empty_queueDomain
+			queueConfig = QueueEventConfig.new
+			queueConfig.cookieDomain = "cookieDomain"
+			queueConfig.layoutName = "layoutName"
+			queueConfig.culture = "culture"
+			queueConfig.eventId = "eventId"
+			#queueConfig.queueDomain = "queueDomain"
+			queueConfig.extendCookieValidity = true
+			queueConfig.cookieValidityMinute = 10
+			queueConfig.version = 12
 
-		errorThrown = false
+			errorThrown = false
         
-		begin
-            KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, nil, "secretKey", {}, HttpRequestMock.new)
-		rescue KnownUserError => err
-			errorThrown = err.message.eql? "customerId can not be nil or empty."
+			begin
+				KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerid", "secretkey", {}, HttpRequestMock.new)
+			rescue KnownUserError => err
+				errorThrown = err.message.eql? "queueConfig.queueDomain can not be nil or empty."
+			end
+		
+			assert( errorThrown )
 		end
-		
-		assert( errorThrown )
-	end
 
-	def test_resolveQueueRequestByLocalConfig_Invalid_extendCookieValidity
-		queueConfig = QueueEventConfig.new
-		queueConfig.cookieDomain = "cookieDomain"
-        queueConfig.layoutName = "layoutName"
-        queueConfig.culture = "culture"
-        queueConfig.eventId = "eventId"
-        queueConfig.queueDomain = "queueDomain"
-        queueConfig.extendCookieValidity = "not-a-boolean"
-        queueConfig.cookieValidityMinute = 10
-        queueConfig.version = 12
+		def test_resolveQueueRequestByLocalConfig_empty_customerId
+			queueConfig = QueueEventConfig.new
+			queueConfig.cookieDomain = "cookieDomain"
+			queueConfig.layoutName = "layoutName"
+			queueConfig.culture = "culture"
+			queueConfig.eventId = "eventId"
+			queueConfig.queueDomain = "queueDomain"
+			queueConfig.extendCookieValidity = true
+			queueConfig.cookieValidityMinute = 10
+			queueConfig.version = 12
 
-		errorThrown = false
+			errorThrown = false
         
-		begin
-            KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerId", "secretKey", {}, HttpRequestMock.new)
-		rescue KnownUserError => err
-			errorThrown = err.message.eql? "queueConfig.extendCookieValidity should be valid boolean."
+			begin
+				KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, nil, "secretKey", {}, HttpRequestMock.new)
+			rescue KnownUserError => err
+				errorThrown = err.message.eql? "customerId can not be nil or empty."
+			end
+		
+			assert( errorThrown )
 		end
-		
-		assert( errorThrown )
-	end
 
-	def test_resolveQueueRequestByLocalConfig_Invalid_cookieValidityMinute
-		queueConfig = QueueEventConfig.new
-        queueConfig.cookieDomain = "cookieDomain"
-        queueConfig.layoutName = "layoutName"
-        queueConfig.culture = "culture"
-        queueConfig.eventId = "eventId"
-        queueConfig.queueDomain = "queueDomain"
-        queueConfig.extendCookieValidity = true
-        queueConfig.cookieValidityMinute = "test"
-        queueConfig.version = 12
+		def test_resolveQueueRequestByLocalConfig_Invalid_extendCookieValidity
+			queueConfig = QueueEventConfig.new
+			queueConfig.cookieDomain = "cookieDomain"
+			queueConfig.layoutName = "layoutName"
+			queueConfig.culture = "culture"
+			queueConfig.eventId = "eventId"
+			queueConfig.queueDomain = "queueDomain"
+			queueConfig.extendCookieValidity = "not-a-boolean"
+			queueConfig.cookieValidityMinute = 10
+			queueConfig.version = 12
 
-		errorThrown = false
+			errorThrown = false
         
-		begin
-            KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerId", "secretKey", {}, HttpRequestMock.new)
-		rescue KnownUserError => err
-			errorThrown = err.message.start_with? "queueConfig.cookieValidityMinute should be integer greater than 0"
+			begin
+				KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerId", "secretKey", {}, HttpRequestMock.new)
+			rescue KnownUserError => err
+				errorThrown = err.message.eql? "queueConfig.extendCookieValidity should be valid boolean."
+			end
+		
+			assert( errorThrown )
 		end
-		
-		assert( errorThrown )
-	end
 
-	def test_resolveQueueRequestByLocalConfig_zero_cookieValidityMinute
-		queueConfig = QueueEventConfig.new
-        queueConfig.cookieDomain = "cookieDomain"
-        queueConfig.layoutName = "layoutName"
-        queueConfig.culture = "culture"
-        queueConfig.eventId = "eventId"
-        queueConfig.queueDomain = "queueDomain"
-        queueConfig.extendCookieValidity = true
-        queueConfig.cookieValidityMinute = 0
-        queueConfig.version = 12
+		def test_resolveQueueRequestByLocalConfig_Invalid_cookieValidityMinute
+			queueConfig = QueueEventConfig.new
+			queueConfig.cookieDomain = "cookieDomain"
+			queueConfig.layoutName = "layoutName"
+			queueConfig.culture = "culture"
+			queueConfig.eventId = "eventId"
+			queueConfig.queueDomain = "queueDomain"
+			queueConfig.extendCookieValidity = true
+			queueConfig.cookieValidityMinute = "test"
+			queueConfig.version = 12
 
-		errorThrown = false
+			errorThrown = false
         
-		begin
-            KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerId", "secretKey", {}, HttpRequestMock.new)
-		rescue KnownUserError => err
-			errorThrown = err.message.start_with? "queueConfig.cookieValidityMinute should be integer greater than 0"
+			begin
+				KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerId", "secretKey", {}, HttpRequestMock.new)
+			rescue KnownUserError => err
+				errorThrown = err.message.start_with? "queueConfig.cookieValidityMinute should be integer greater than 0"
+			end
+		
+			assert( errorThrown )
 		end
-		
-		assert( errorThrown )
-	end
 
-	def test_resolveQueueRequestByLocalConfig_setDebugCookie
-		userInQueueService = UserInQueueServiceMock.new 
-		KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+		def test_resolveQueueRequestByLocalConfig_zero_cookieValidityMinute
+			queueConfig = QueueEventConfig.new
+			queueConfig.cookieDomain = "cookieDomain"
+			queueConfig.layoutName = "layoutName"
+			queueConfig.culture = "culture"
+			queueConfig.eventId = "eventId"
+			queueConfig.queueDomain = "queueDomain"
+			queueConfig.extendCookieValidity = true
+			queueConfig.cookieValidityMinute = 0
+			queueConfig.version = 12
 
-		queueConfig = QueueEventConfig.new
-        queueConfig.cookieDomain = "cookieDomain"
-        queueConfig.layoutName = "layoutName"
-        queueConfig.culture = "culture"
-        queueConfig.eventId = "eventId"
-        queueConfig.queueDomain = "queueDomain"
-        queueConfig.extendCookieValidity = true
-        queueConfig.cookieValidityMinute = 10
-        queueConfig.version = 12
-
-		requestMock = HttpRequestMock.new
-		requestMock.original_url = "original_url"
-		
-		cookieJar = {}
-		secretKey = "secretKey"
-		queueitToken = QueueITTokenGenerator::generateDebugToken("eventId", secretKey)
-		
-		KnownUser.resolveQueueRequestByLocalConfig("url", queueitToken, queueConfig, "customerId", secretKey, cookieJar, requestMock)
-		
-		expectedCookieValue = "targetUrl=url&queueitToken=" + queueitToken + "&OriginalURL=original_url&queueConfig=EventId:eventId&Version:12&QueueDomain:queueDomain&CookieDomain:cookieDomain&ExtendCookieValidity:true&CookieValidityMinute:10&LayoutName:layoutName&Culture:culture"
+			errorThrown = false
         
-        assert( cookieJar.length == 1 );
-		assert( cookieJar.key?(KnownUser::QUEUEIT_DEBUG_KEY.to_sym) )
-		assert( expectedCookieValue.eql?(cookieJar[KnownUser::QUEUEIT_DEBUG_KEY.to_sym]["value".to_sym]) )
-	end
-
-	def test_resolveQueueRequestByLocalConfig
-		userInQueueService = UserInQueueServiceMock.new 
-		KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
-
-		queueConfig = QueueEventConfig.new
-        queueConfig.cookieDomain = "cookieDomain"
-        queueConfig.layoutName = "layoutName"
-        queueConfig.culture = "culture"
-        queueConfig.eventId = "eventId"
-        queueConfig.queueDomain = "queueDomain"
-        queueConfig.extendCookieValidity = true
-        queueConfig.cookieValidityMinute = 10
-        queueConfig.version = 12
-
-		KnownUser.resolveQueueRequestByLocalConfig("target", "token", queueConfig, "id", "key", {}, HttpRequestMock.new)
-
-		assert( userInQueueService.validateQueueRequestCalls[0]["targetUrl"] == "target" )
-		assert( userInQueueService.validateQueueRequestCalls[0]["queueitToken"] == "token" )
-		assert( userInQueueService.validateQueueRequestCalls[0]["config"] == queueConfig )
-		assert( userInQueueService.validateQueueRequestCalls[0]["customerId"] == "id" )
-		assert( userInQueueService.validateQueueRequestCalls[0]["secretKey"] == "key" )
-	end
-
-	def test_validateRequestByIntegrationConfig_empty_currentUrl
-		errorThrown = false
-        
-		begin
-            KnownUser.validateRequestByIntegrationConfig("", "queueIttoken", nil, "customerId", "secretKey", {}, HttpRequestMock.new)
-		rescue KnownUserError => err
-			errorThrown = err.message.start_with? "currentUrl can not be nil or empty"
+			begin
+				KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerId", "secretKey", {}, HttpRequestMock.new)
+			rescue KnownUserError => err
+				errorThrown = err.message.start_with? "queueConfig.cookieValidityMinute should be integer greater than 0"
+			end
+		
+			assert( errorThrown )
 		end
-		
-		assert( errorThrown )
-	end
 
-	def test_validateRequestByIntegrationConfig_empty_integrationsConfigString
-		errorThrown = false
+		def test_resolveQueueRequestByLocalConfig_setDebugCookie
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+
+			queueConfig = QueueEventConfig.new
+			queueConfig.cookieDomain = "cookieDomain"
+			queueConfig.layoutName = "layoutName"
+			queueConfig.culture = "culture"
+			queueConfig.eventId = "eventId"
+			queueConfig.queueDomain = "queueDomain"
+			queueConfig.extendCookieValidity = true
+			queueConfig.cookieValidityMinute = 10
+			queueConfig.version = 12
+
+			requestMock = HttpRequestMock.new
+			requestMock.original_url = "original_url"
+		
+			cookieJar = {}
+			secretKey = "secretKey"
+			queueitToken = QueueITTokenGenerator::generateDebugToken("eventId", secretKey)
+		
+			KnownUser.resolveQueueRequestByLocalConfig("url", queueitToken, queueConfig, "customerId", secretKey, cookieJar, requestMock)
+		
+			expectedCookieValue = "targetUrl=url&queueitToken=" + queueitToken + "&OriginalURL=original_url&queueConfig=EventId:eventId&Version:12&QueueDomain:queueDomain&CookieDomain:cookieDomain&ExtendCookieValidity:true&CookieValidityMinute:10&LayoutName:layoutName&Culture:culture"
         
-		begin
-            KnownUser.validateRequestByIntegrationConfig("currentUrl", "queueIttoken", nil, "customerId", "secretKey", {}, HttpRequestMock.new)
-		rescue KnownUserError => err
-			errorThrown = err.message.start_with? "integrationsConfigString can not be nil or empty"
+			assert( cookieJar.length == 1 );
+			assert( cookieJar.key?(KnownUser::QUEUEIT_DEBUG_KEY.to_sym) )
+			assert( expectedCookieValue.eql?(cookieJar[KnownUser::QUEUEIT_DEBUG_KEY.to_sym]["value".to_sym]) )
 		end
-		
-		assert( errorThrown )
-	end
 
-	def test_validateRequestByIntegrationConfig_invalid_integrationsConfigString
-		errorThrown = false
+		def test_resolveQueueRequestByLocalConfig
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+
+			queueConfig = QueueEventConfig.new
+			queueConfig.cookieDomain = "cookieDomain"
+			queueConfig.layoutName = "layoutName"
+			queueConfig.culture = "culture"
+			queueConfig.eventId = "eventId"
+			queueConfig.queueDomain = "queueDomain"
+			queueConfig.extendCookieValidity = true
+			queueConfig.cookieValidityMinute = 10
+			queueConfig.version = 12
+
+			KnownUser.resolveQueueRequestByLocalConfig("target", "token", queueConfig, "id", "key", {}, HttpRequestMock.new)
+
+			assert( userInQueueService.validateQueueRequestCalls[0]["targetUrl"] == "target" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["queueitToken"] == "token" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["config"] == queueConfig )
+			assert( userInQueueService.validateQueueRequestCalls[0]["customerId"] == "id" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["secretKey"] == "key" )
+		end
+
+		def test_validateRequestByIntegrationConfig_empty_currentUrl
+			errorThrown = false
         
-		begin
-            KnownUser.validateRequestByIntegrationConfig("currentUrl", "queueIttoken", "not-valid-json", "customerId", "secretKey", {}, HttpRequestMock.new)
-		rescue KnownUserError => err
-			errorThrown = err.message.start_with? "integrationConfiguration text was not valid"
-		end
+			begin
+				KnownUser.validateRequestByIntegrationConfig("", "queueIttoken", nil, "customerId", "secretKey", {}, HttpRequestMock.new)
+			rescue KnownUserError => err
+				errorThrown = err.message.start_with? "currentUrl can not be nil or empty"
+			end
 		
-		assert( errorThrown )
-	end
+			assert( errorThrown )
+		end
 
-	def test_validateRequestByIntegrationConfig
-		userInQueueService = UserInQueueServiceMock.new 
-		KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+		def test_validateRequestByIntegrationConfig_empty_integrationsConfigString
+			errorThrown = false
+        
+			begin
+				KnownUser.validateRequestByIntegrationConfig("currentUrl", "queueIttoken", nil, "customerId", "secretKey", {}, HttpRequestMock.new)
+			rescue KnownUserError => err
+				errorThrown = err.message.start_with? "integrationsConfigString can not be nil or empty"
+			end
+		
+			assert( errorThrown )
+		end
 
-		integrationConfig = 
-        {
-            :Description => "test",
-            :Integrations => 
-			[
+		def test_validateRequestByIntegrationConfig_invalid_integrationsConfigString
+			errorThrown = false
+        
+			begin
+				KnownUser.validateRequestByIntegrationConfig("currentUrl", "queueIttoken", "not-valid-json", "customerId", "secretKey", {}, HttpRequestMock.new)
+			rescue KnownUserError => err
+				errorThrown = err.message.start_with? "integrationConfiguration text was not valid"
+			end
+		
+			assert( errorThrown )
+		end
+
+		def test_validateRequestByIntegrationConfig
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+
+			integrationConfig = 
 			{
-                :Name => "event1action",
-                #:ActionType => "Queue", #omitting will default to "Queue"
-                :EventId => "event1",
-                :CookieDomain => ".test.com",
-                :LayoutName => "Christmas Layout by Queue-it",
-                :Culture => "",
-                :ExtendCookieValidity => true,
-                :CookieValidityMinute => 20,
-                :Triggers => 
+				:Description => "test",
+				:Integrations => 
 				[
-                {
-                    :TriggerParts => 
+				{
+					:Name => "event1action",
+					#:ActionType => "Queue", #omitting will default to "Queue"
+					:EventId => "event1",
+					:CookieDomain => ".test.com",
+					:LayoutName => "Christmas Layout by Queue-it",
+					:Culture => "",
+					:ExtendCookieValidity => true,
+					:CookieValidityMinute => 20,
+					:Triggers => 
 					[
-                    {
-                        :Operator => "Contains",
-                        :ValueToCompare => "event1",
-                        :UrlPart => "PageUrl",
-                        :ValidatorType => "UrlValidator",
-                        :IsNegative => false,
-                        :IsIgnoreCase => true
-					},					
 					{
-                        :Operator => "Contains",
-                        :ValueToCompare => "googlebot",
-                        :ValidatorType => "UserAgentValidator",
-                        :IsNegative => false,
-                        :IsIgnoreCase => false
-                    }
-                    ],
-                    :LogicalOperator => "And"
-                }
+						:TriggerParts => 
+						[
+						{
+							:Operator => "Contains",
+							:ValueToCompare => "event1",
+							:UrlPart => "PageUrl",
+							:ValidatorType => "UrlValidator",
+							:IsNegative => false,
+							:IsIgnoreCase => true
+						},					
+						{
+							:Operator => "Contains",
+							:ValueToCompare => "googlebot",
+							:ValidatorType => "UserAgentValidator",
+							:IsNegative => false,
+							:IsIgnoreCase => false
+						}
+						],
+						:LogicalOperator => "And"
+					}
+					],
+					:QueueDomain => "knownusertest.queue-it.net",
+					:RedirectLogic => "AllowTParameter"
+				}
 				],
-                :QueueDomain => "knownusertest.queue-it.net",
-                :RedirectLogic => "AllowTParameter"
-            }
-            ],
-            :CustomerId => "knownusertest",
-            :AccountId => "knownusertest",
-            :Version => 3,
-            :PublishDate => "2017-05-15T21:39:12.0076806Z",
-            :ConfigDataVersion => "1.0.0.1"
-        }
-		mockRequest = HttpRequestMock.new
-		mockRequest.user_agent = 'googlebot'
-		integrationConfigJson = JSON.generate(integrationConfig)
-		KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "token", integrationConfigJson, "id", "key", Hash.new, mockRequest)
+				:CustomerId => "knownusertest",
+				:AccountId => "knownusertest",
+				:Version => 3,
+				:PublishDate => "2017-05-15T21:39:12.0076806Z",
+				:ConfigDataVersion => "1.0.0.1"
+			}
+			mockRequest = HttpRequestMock.new
+			mockRequest.user_agent = 'googlebot'
+			integrationConfigJson = JSON.generate(integrationConfig)
+			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "token", integrationConfigJson, "id", "key", Hash.new, mockRequest)
 
-		assert( userInQueueService.validateQueueRequestCalls[0]["targetUrl"] == "http://test.com?event1=true" )
-		assert( userInQueueService.validateQueueRequestCalls[0]["queueitToken"] == "token" )
-		assert( userInQueueService.validateQueueRequestCalls[0]["customerId"] == "id" )
-		assert( userInQueueService.validateQueueRequestCalls[0]["secretKey"] == "key" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["targetUrl"] == "http://test.com?event1=true" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["queueitToken"] == "token" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["customerId"] == "id" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["secretKey"] == "key" )
 
-		assert( userInQueueService.validateQueueRequestCalls[0]["config"].queueDomain == "knownusertest.queue-it.net" )
-		assert( userInQueueService.validateQueueRequestCalls[0]["config"].eventId == "event1" )
-		assert( userInQueueService.validateQueueRequestCalls[0]["config"].culture == "" )
-		assert( userInQueueService.validateQueueRequestCalls[0]["config"].layoutName == "Christmas Layout by Queue-it" )
-		assert( userInQueueService.validateQueueRequestCalls[0]["config"].extendCookieValidity )
-		assert( userInQueueService.validateQueueRequestCalls[0]["config"].cookieValidityMinute == 20 )
-		assert( userInQueueService.validateQueueRequestCalls[0]["config"].cookieDomain == ".test.com" )
-		assert( userInQueueService.validateQueueRequestCalls[0]["config"].version == 3 )
-	end
+			assert( userInQueueService.validateQueueRequestCalls[0]["config"].queueDomain == "knownusertest.queue-it.net" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["config"].eventId == "event1" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["config"].culture == "" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["config"].layoutName == "Christmas Layout by Queue-it" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["config"].extendCookieValidity )
+			assert( userInQueueService.validateQueueRequestCalls[0]["config"].cookieValidityMinute == 20 )
+			assert( userInQueueService.validateQueueRequestCalls[0]["config"].cookieDomain == ".test.com" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["config"].version == 3 )
+		end
 
-	def test_validateRequestByIntegrationConfig_setDebugCookie
-		userInQueueService = UserInQueueServiceMock.new 
-		KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+		def test_validateRequestByIntegrationConfig_setDebugCookie
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
-		integrationConfig = 
-        {
-            :Description => "test",
-            :Integrations => 
-			[
+			integrationConfig = 
 			{
-                :Name => "event1action",
-                #:ActionType => "Queue", #omitting will default to "Queue"
-                :EventId => "event1",
-                :CookieDomain => ".test.com",
-                :LayoutName => "Christmas Layout by Queue-it",
-                :Culture => "da-DK",
-                :ExtendCookieValidity => true,
-                :CookieValidityMinute => 20,
-                :Triggers => 
+				:Description => "test",
+				:Integrations => 
 				[
-                {
-                    :TriggerParts => 
+				{
+					:Name => "event1action",
+					#:ActionType => "Queue", #omitting will default to "Queue"
+					:EventId => "event1",
+					:CookieDomain => ".test.com",
+					:LayoutName => "Christmas Layout by Queue-it",
+					:Culture => "da-DK",
+					:ExtendCookieValidity => true,
+					:CookieValidityMinute => 20,
+					:Triggers => 
 					[
-                    {
-                        :Operator => "Contains",
-                        :ValueToCompare => "event1",
-                        :UrlPart => "PageUrl",
-                        :ValidatorType => "UrlValidator",
-                        :IsNegative => false,
-                        :IsIgnoreCase => true
-					},					
 					{
-                        :Operator => "Contains",
-                        :ValueToCompare => "googlebot",
-                        :ValidatorType => "UserAgentValidator",
-                        :IsNegative => false,
-                        :IsIgnoreCase => false
-                    }
-                    ],
-                    :LogicalOperator => "And"
-                }
+						:TriggerParts => 
+						[
+						{
+							:Operator => "Contains",
+							:ValueToCompare => "event1",
+							:UrlPart => "PageUrl",
+							:ValidatorType => "UrlValidator",
+							:IsNegative => false,
+							:IsIgnoreCase => true
+						},					
+						{
+							:Operator => "Contains",
+							:ValueToCompare => "googlebot",
+							:ValidatorType => "UserAgentValidator",
+							:IsNegative => false,
+							:IsIgnoreCase => false
+						}
+						],
+						:LogicalOperator => "And"
+					}
+					],
+					:QueueDomain => "knownusertest.queue-it.net",
+					:RedirectLogic => "AllowTParameter"
+				}
 				],
-                :QueueDomain => "knownusertest.queue-it.net",
-                :RedirectLogic => "AllowTParameter"
-            }
-            ],
-            :CustomerId => "knownusertest",
-            :AccountId => "knownusertest",
-            :Version => 3,
-            :PublishDate => "2017-05-15T21:39:12.0076806Z",
-            :ConfigDataVersion => "1.0.0.1"
-        }
+				:CustomerId => "knownusertest",
+				:AccountId => "knownusertest",
+				:Version => 3,
+				:PublishDate => "2017-05-15T21:39:12.0076806Z",
+				:ConfigDataVersion => "1.0.0.1"
+			}
 		
-		requestMock = HttpRequestMock.new
-		requestMock.user_agent = "googlebot"
-		requestMock.original_url = "original_url"
-		integrationConfigJson = JSON.generate(integrationConfig)
+			requestMock = HttpRequestMock.new
+			requestMock.user_agent = "googlebot"
+			requestMock.original_url = "original_url"
+			integrationConfigJson = JSON.generate(integrationConfig)
 		
-		cookieJar = {}
-		secretKey = "secretKey"
-		queueitToken = QueueITTokenGenerator::generateDebugToken("eventId", secretKey)
+			cookieJar = {}
+			secretKey = "secretKey"
+			queueitToken = QueueITTokenGenerator::generateDebugToken("eventId", secretKey)
 		
-		KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", queueitToken, integrationConfigJson, "customerId", secretKey, cookieJar, requestMock)
+			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", queueitToken, integrationConfigJson, "customerId", secretKey, cookieJar, requestMock)
 
-		expectedCookieValue = "configVersion=3&pureUrl=http://test.com?event1=true&queueitToken=" + queueitToken + "&OriginalURL=original_url&matchedConfig=event1action&targetUrl=http://test.com?event1=true&queueConfig=EventId:event1&Version:3&QueueDomain:knownusertest.queue-it.net&CookieDomain:.test.com&ExtendCookieValidity:true&CookieValidityMinute:20&LayoutName:Christmas Layout by Queue-it&Culture:da-DK"
+			expectedCookieValue = "configVersion=3&pureUrl=http://test.com?event1=true&queueitToken=" + queueitToken + "&OriginalURL=original_url&matchedConfig=event1action&targetUrl=http://test.com?event1=true&queueConfig=EventId:event1&Version:3&QueueDomain:knownusertest.queue-it.net&CookieDomain:.test.com&ExtendCookieValidity:true&CookieValidityMinute:20&LayoutName:Christmas Layout by Queue-it&Culture:da-DK"
         
-		assert( cookieJar.length == 1 );
-		assert( cookieJar.key?(KnownUser::QUEUEIT_DEBUG_KEY.to_sym) )
-		assert( expectedCookieValue.eql?(cookieJar[KnownUser::QUEUEIT_DEBUG_KEY.to_sym]["value".to_sym]) )
-	end
+			assert( cookieJar.length == 1 );
+			assert( cookieJar.key?(KnownUser::QUEUEIT_DEBUG_KEY.to_sym) )
+			assert( expectedCookieValue.eql?(cookieJar[KnownUser::QUEUEIT_DEBUG_KEY.to_sym]["value".to_sym]) )
+		end
 
-	def test_validateRequestByIntegrationConfig_NotMatch
-		userInQueueService = UserInQueueServiceMock.new 
-		KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+		def test_validateRequestByIntegrationConfig_NotMatch
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
-        integrationConfig = 
-        {
-          :Description => "test",
-          :Integrations => [
-          ],
-          :CustomerId => "knownusertest",
-          :AccountId => "knownusertest",
-          :Version => 3,
-          :PublishDate => "2017-05-15T21:39:12.0076806Z",
-          :ConfigDataVersion => "1.0.0.1"
-        }
-
-		integrationConfigJson = JSON.generate(integrationConfig)
-        result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", Hash.new, HttpRequestMock.new)
-        
-		assert( userInQueueService.validateQueueRequestCalls.length == 0 )
-		assert( !result.doRedirect )
-	end
-
-	def test_validateRequestByIntegrationConfig_setDebugCookie_NotMatch
-		userInQueueService = UserInQueueServiceMock.new 
-		KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
-
-		requestMock = HttpRequestMock.new
-		requestMock.original_url = "original_url"
-		
-        integrationConfig = 
-        {
-          :Description => "test",
-          :Integrations => [
-          ],
-          :CustomerId => "knownusertest",
-          :AccountId => "knownusertest",
-          :Version => 3,
-          :PublishDate => "2017-05-15T21:39:12.0076806Z",
-          :ConfigDataVersion => "1.0.0.1"
-        }
-
-		cookieJar = {}
-		secretKey = "secretKey"
-		queueitToken = QueueITTokenGenerator::generateDebugToken("eventId", secretKey)		
-
-		integrationConfigJson = JSON.generate(integrationConfig)
-        KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", queueitToken, integrationConfigJson, "customerId", secretKey, cookieJar, requestMock)
-
-		expectedCookieValue = "configVersion=3&pureUrl=http://test.com?event1=true&queueitToken=" + queueitToken + "&OriginalURL=original_url&matchedConfig=NULL"
-        
-		assert( cookieJar.length == 1 );
-		assert( cookieJar.key?(KnownUser::QUEUEIT_DEBUG_KEY.to_sym) )
-		assert( expectedCookieValue.eql?(cookieJar[KnownUser::QUEUEIT_DEBUG_KEY.to_sym]["value".to_sym]) )        
-	end
-
-	def test_validateRequestByIntegrationConfig_ForcedTargetUrl
-		userInQueueService = UserInQueueServiceMock.new 
-		KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
-		
-		integrationConfig = 
-        {
-            :Description => "test",
-            :Integrations => 
-			[
+			integrationConfig = 
 			{
-                :Name => "event1action",
-                :ActionType => "Queue",
-                :EventId => "event1",
-                :CookieDomain => ".test.com",
-                :LayoutName => "Christmas Layout by Queue-it",
-                :Culture => "",
-                :ExtendCookieValidity => true,
-                :CookieValidityMinute => 20,
-                :Triggers => 
+			  :Description => "test",
+			  :Integrations => [
+			  ],
+			  :CustomerId => "knownusertest",
+			  :AccountId => "knownusertest",
+			  :Version => 3,
+			  :PublishDate => "2017-05-15T21:39:12.0076806Z",
+			  :ConfigDataVersion => "1.0.0.1"
+			}
+
+			integrationConfigJson = JSON.generate(integrationConfig)
+			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", Hash.new, HttpRequestMock.new)
+        
+			assert( userInQueueService.validateQueueRequestCalls.length == 0 )
+			assert( !result.doRedirect )
+		end
+
+		def test_validateRequestByIntegrationConfig_setDebugCookie_NotMatch
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+
+			requestMock = HttpRequestMock.new
+			requestMock.original_url = "original_url"
+		
+			integrationConfig = 
+			{
+			  :Description => "test",
+			  :Integrations => [
+			  ],
+			  :CustomerId => "knownusertest",
+			  :AccountId => "knownusertest",
+			  :Version => 3,
+			  :PublishDate => "2017-05-15T21:39:12.0076806Z",
+			  :ConfigDataVersion => "1.0.0.1"
+			}
+
+			cookieJar = {}
+			secretKey = "secretKey"
+			queueitToken = QueueITTokenGenerator::generateDebugToken("eventId", secretKey)		
+
+			integrationConfigJson = JSON.generate(integrationConfig)
+			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", queueitToken, integrationConfigJson, "customerId", secretKey, cookieJar, requestMock)
+
+			expectedCookieValue = "configVersion=3&pureUrl=http://test.com?event1=true&queueitToken=" + queueitToken + "&OriginalURL=original_url&matchedConfig=NULL"
+        
+			assert( cookieJar.length == 1 );
+			assert( cookieJar.key?(KnownUser::QUEUEIT_DEBUG_KEY.to_sym) )
+			assert( expectedCookieValue.eql?(cookieJar[KnownUser::QUEUEIT_DEBUG_KEY.to_sym]["value".to_sym]) )        
+		end
+
+		def test_validateRequestByIntegrationConfig_ForcedTargetUrl
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+		
+			integrationConfig = 
+			{
+				:Description => "test",
+				:Integrations => 
 				[
-                {
-                    :TriggerParts => 
+				{
+					:Name => "event1action",
+					:ActionType => "Queue",
+					:EventId => "event1",
+					:CookieDomain => ".test.com",
+					:LayoutName => "Christmas Layout by Queue-it",
+					:Culture => "",
+					:ExtendCookieValidity => true,
+					:CookieValidityMinute => 20,
+					:Triggers => 
 					[
-                    {
-                        :Operator => "Contains",
-                        :ValueToCompare => "event1",
-                        :UrlPart => "PageUrl",
-                        :ValidatorType => "UrlValidator",
-                        :IsNegative => false,
-                        :IsIgnoreCase => true
-                    }
-                    ],
-                    :LogicalOperator => "And"
-                }
+					{
+						:TriggerParts => 
+						[
+						{
+							:Operator => "Contains",
+							:ValueToCompare => "event1",
+							:UrlPart => "PageUrl",
+							:ValidatorType => "UrlValidator",
+							:IsNegative => false,
+							:IsIgnoreCase => true
+						}
+						],
+						:LogicalOperator => "And"
+					}
+					],
+					:QueueDomain => "knownusertest.queue-it.net",
+					:RedirectLogic => "ForcedTargetUrl",
+					:ForcedTargetUrl => "http://test.com"
+				}
 				],
-                :QueueDomain => "knownusertest.queue-it.net",
-                :RedirectLogic => "ForcedTargetUrl",
-				:ForcedTargetUrl => "http://test.com"
-            }
-            ],
-            :CustomerId => "knownusertest",
-            :AccountId => "knownusertest",
-            :Version => 3,
-            :PublishDate => "2017-05-15T21:39:12.0076806Z",
-            :ConfigDataVersion => "1.0.0.1"
-        }
+				:CustomerId => "knownusertest",
+				:AccountId => "knownusertest",
+				:Version => 3,
+				:PublishDate => "2017-05-15T21:39:12.0076806Z",
+				:ConfigDataVersion => "1.0.0.1"
+			}
 			
-		integrationConfigJson = JSON.generate(integrationConfig)
-		KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", Hash.new, HttpRequestMock.new)
+			integrationConfigJson = JSON.generate(integrationConfig)
+			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", Hash.new, HttpRequestMock.new)
 		
-		assert( userInQueueService.validateQueueRequestCalls[0]['targetUrl'] == "http://test.com" )
-	end
+			assert( userInQueueService.validateQueueRequestCalls[0]['targetUrl'] == "http://test.com" )
+		end
 
-	def test_validateRequestByIntegrationConfig_EventTargetUrl
-		userInQueueService = UserInQueueServiceMock.new 
-		KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)		
+		def test_validateRequestByIntegrationConfig_EventTargetUrl
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)		
 		
-		integrationConfig = 
-        {
-            :Description => "test",
-            :Integrations => 
-			[
+			integrationConfig = 
 			{
-                :Name => "event1action",
-                :ActionType => "Queue",
-                :EventId => "event1",
-                :CookieDomain => ".test.com",
-                :LayoutName => "Christmas Layout by Queue-it",
-                :Culture => "",
-                :ExtendCookieValidity => true,
-                :CookieValidityMinute => 20,
-                :Triggers => 
+				:Description => "test",
+				:Integrations => 
 				[
-                {
-                    :TriggerParts => 
+				{
+					:Name => "event1action",
+					:ActionType => "Queue",
+					:EventId => "event1",
+					:CookieDomain => ".test.com",
+					:LayoutName => "Christmas Layout by Queue-it",
+					:Culture => "",
+					:ExtendCookieValidity => true,
+					:CookieValidityMinute => 20,
+					:Triggers => 
 					[
-                    {
-                        :Operator => "Contains",
-                        :ValueToCompare => "event1",
-                        :UrlPart => "PageUrl",
-                        :ValidatorType => "UrlValidator",
-                        :IsNegative => false,
-                        :IsIgnoreCase => true
+					{
+						:TriggerParts => 
+						[
+						{
+							:Operator => "Contains",
+							:ValueToCompare => "event1",
+							:UrlPart => "PageUrl",
+							:ValidatorType => "UrlValidator",
+							:IsNegative => false,
+							:IsIgnoreCase => true
+						}
+						],
+						:LogicalOperator => "And"
 					}
-                    ],
-                    :LogicalOperator => "And"
-                }
+					],
+					:QueueDomain => "knownusertest.queue-it.net",
+					:RedirectLogic => "EventTargetUrl"
+				}
 				],
-                :QueueDomain => "knownusertest.queue-it.net",
-                :RedirectLogic => "EventTargetUrl"
-            }
-            ],
-            :CustomerId => "knownusertest",
-            :AccountId => "knownusertest",
-            :Version => 3,
-            :PublishDate => "2017-05-15T21:39:12.0076806Z",
-            :ConfigDataVersion => "1.0.0.1"
-		}
+				:CustomerId => "knownusertest",
+				:AccountId => "knownusertest",
+				:Version => 3,
+				:PublishDate => "2017-05-15T21:39:12.0076806Z",
+				:ConfigDataVersion => "1.0.0.1"
+			}
 
-		integrationConfigJson = JSON.generate(integrationConfig)
-		KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", Hash.new, HttpRequestMock.new)
+			integrationConfigJson = JSON.generate(integrationConfig)
+			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", Hash.new, HttpRequestMock.new)
 		
-		assert( userInQueueService.validateQueueRequestCalls[0]['targetUrl'] == "" )
-	end
+			assert( userInQueueService.validateQueueRequestCalls[0]['targetUrl'] == "" )
+		end
 
-	def test_validateRequestByIntegrationConfig_CancelAction
-		userInQueueService = UserInQueueServiceMock.new 
-		KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)		
+		def test_validateRequestByIntegrationConfig_CancelAction
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)		
 		
-		integrationConfig = 
-        {
-            :Description => "test",
-            :Integrations => 
-			[
+			integrationConfig = 
 			{
-                :Name => "event1action",
-                :ActionType => "Cancel",
-                :EventId => "event1",
-                :CookieDomain => ".test.com",
-                :Triggers => 
+				:Description => "test",
+				:Integrations => 
 				[
-                {
-                    :TriggerParts => 
+				{
+					:Name => "event1action",
+					:ActionType => "Cancel",
+					:EventId => "event1",
+					:CookieDomain => ".test.com",
+					:Triggers => 
 					[
-                    {
-                        :Operator => "Contains",
-                        :ValueToCompare => "event1",
-                        :UrlPart => "PageUrl",
-                        :ValidatorType => "UrlValidator",
-                        :IsNegative => false,
-                        :IsIgnoreCase => true
+					{
+						:TriggerParts => 
+						[
+						{
+							:Operator => "Contains",
+							:ValueToCompare => "event1",
+							:UrlPart => "PageUrl",
+							:ValidatorType => "UrlValidator",
+							:IsNegative => false,
+							:IsIgnoreCase => true
+						}
+						],
+						:LogicalOperator => "And"
 					}
-                    ],
-                    :LogicalOperator => "And"
-                }
+					],
+					:QueueDomain => "knownusertest.queue-it.net",                
+				}
 				],
-                :QueueDomain => "knownusertest.queue-it.net",                
-            }
-            ],
-            :CustomerId => "knownusertest",
-            :AccountId => "knownusertest",
-            :Version => 3,
-            :PublishDate => "2017-05-15T21:39:12.0076806Z",
-            :ConfigDataVersion => "1.0.0.1"
-		}
+				:CustomerId => "knownusertest",
+				:AccountId => "knownusertest",
+				:Version => 3,
+				:PublishDate => "2017-05-15T21:39:12.0076806Z",
+				:ConfigDataVersion => "1.0.0.1"
+			}
 
-		integrationConfigJson = JSON.generate(integrationConfig)
-		KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", Hash.new, HttpRequestMock.new)
+			integrationConfigJson = JSON.generate(integrationConfig)
+			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", Hash.new, HttpRequestMock.new)
 		
-		assert( userInQueueService.validateCancelRequestCalls[0]["targetUrl"] == "http://test.com?event1=true" )
-		assert( userInQueueService.validateCancelRequestCalls[0]["customerId"] == "customerid" )
-		assert( userInQueueService.validateCancelRequestCalls[0]["secretKey"] == "secretkey" )
+			assert( userInQueueService.validateCancelRequestCalls[0]["targetUrl"] == "http://test.com?event1=true" )
+			assert( userInQueueService.validateCancelRequestCalls[0]["customerId"] == "customerid" )
+			assert( userInQueueService.validateCancelRequestCalls[0]["secretKey"] == "secretkey" )
 
-		assert( userInQueueService.validateCancelRequestCalls[0]["config"].queueDomain == "knownusertest.queue-it.net" )
-		assert( userInQueueService.validateCancelRequestCalls[0]["config"].eventId == "event1" )
-		assert( userInQueueService.validateCancelRequestCalls[0]["config"].cookieDomain == ".test.com" )
-		assert( userInQueueService.validateCancelRequestCalls[0]["config"].version == 3 )
+			assert( userInQueueService.validateCancelRequestCalls[0]["config"].queueDomain == "knownusertest.queue-it.net" )
+			assert( userInQueueService.validateCancelRequestCalls[0]["config"].eventId == "event1" )
+			assert( userInQueueService.validateCancelRequestCalls[0]["config"].cookieDomain == ".test.com" )
+			assert( userInQueueService.validateCancelRequestCalls[0]["config"].version == 3 )
+		end
 	end
 end
