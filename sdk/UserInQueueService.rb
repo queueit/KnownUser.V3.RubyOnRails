@@ -7,7 +7,7 @@ require_relative 'QueueUrlParams'
 
 module QueueIT
 	class UserInQueueService
-		SDK_VERSION = "3.2.0"
+		SDK_VERSION = "3.2.2"
     
 		def initialize(userInQueueStateRepository)
 			@userInQueueStateRepository = userInQueueStateRepository
