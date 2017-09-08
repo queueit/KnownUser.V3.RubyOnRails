@@ -1,10 +1,6 @@
 require 'open-uri'
 require 'cgi'
 
-require_relative 'Models'
-require_relative 'UserInQueueStateCookieRepository'
-require_relative 'QueueUrlParams'
-
 module QueueIT
 	class UserInQueueService
 		SDK_VERSION = "3.2.2"

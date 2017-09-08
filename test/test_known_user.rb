@@ -1,6 +1,6 @@
 require 'test/unit'
 require 'json'
-require_relative '../KnownUser'
+require_relative '../lib/queue_it'
 
 module QueueIT
 	class HttpRequestMock

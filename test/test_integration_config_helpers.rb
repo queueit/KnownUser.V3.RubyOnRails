@@ -1,5 +1,5 @@
 require 'test/unit'
-require_relative '../IntegrationConfigHelpers'
+require_relative '../lib/queue_it'
 
 module QueueIT
 	class TestIntegrationEvaluator < Test::Unit::TestCase

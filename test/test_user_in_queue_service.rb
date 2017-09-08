@@ -1,7 +1,6 @@
 require 'cgi'
 require 'test/unit'
-require_relative '../UserInQueueService'
-require_relative '../Models'
+require_relative '../lib/queue_it'
 
 module QueueIT
 	class UserInQueueStateRepositoryMockClass

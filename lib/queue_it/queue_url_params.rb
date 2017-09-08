@@ -1,5 +1,3 @@
-require_relative 'Models'
-
 module QueueIT
 	class QueueUrlParams
 		KEY_VALUE_SEPARATOR_GROUP_CHAR = '~';

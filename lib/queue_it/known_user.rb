@@ -1,8 +1,4 @@
 require 'json'
-require_relative 'Models'
-require_relative 'UserInQueueService'
-require_relative 'UserInQueueStateCookieRepository'
-require_relative 'IntegrationConfigHelpers'
 
 module QueueIT
 	class KnownUser

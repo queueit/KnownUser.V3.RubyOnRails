@@ -1,5 +1,5 @@
 require 'test/unit'
-require_relative '../QueueUrlParams'
+require_relative '../lib/queue_it'
 
 module QueueIT
 	class TestQueueUrlParams < Test::Unit::TestCase

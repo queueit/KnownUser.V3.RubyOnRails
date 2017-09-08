@@ -1,5 +1,5 @@
 require "test/unit"
-require_relative '../UserInQueueStateCookieRepository'
+require_relative '../lib/queue_it'
 
 module QueueIT
 	class CookieManagerMockClass 
