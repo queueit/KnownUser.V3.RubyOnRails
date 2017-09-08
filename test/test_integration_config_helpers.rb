@@ -1,7 +1,7 @@
 require 'test/unit'
 require_relative '../lib/queue_it'
 
-module QueueIT
+module QueueIt
 	class TestIntegrationEvaluator < Test::Unit::TestCase
 		def test_getMatchedIntegrationConfig_oneTrigger_and_notMatched
 			integrationConfig = 

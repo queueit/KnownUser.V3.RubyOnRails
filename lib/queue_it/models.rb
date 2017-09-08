@@ -1,4 +1,4 @@
-module QueueIT
+module QueueIt
 	class Utils
 		def self.isNilOrEmpty(value)
 			return !value || value.to_s == ''

@@ -2,7 +2,7 @@ require 'test/unit'
 require 'json'
 require_relative '../lib/queue_it'
 
-module QueueIT
+module QueueIt
 	class HttpRequestMock
 		attr_accessor :user_agent
 		attr_accessor :original_url

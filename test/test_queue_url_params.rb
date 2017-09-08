@@ -1,7 +1,7 @@
 require 'test/unit'
 require_relative '../lib/queue_it'
 
-module QueueIT
+module QueueIt
 	class TestQueueUrlParams < Test::Unit::TestCase
 		def test_extractQueueParams
 			queueITToken = "e_testevent1~q_6cf23f10-aca7-4fa2-840e-e10f56aecb44~ts_1486645251~ce_True~cv_3~rt_Queue~h_cb7b7b53fa20e708cb59a5a2696f248cba3b2905d92e12ee5523c298adbef298";

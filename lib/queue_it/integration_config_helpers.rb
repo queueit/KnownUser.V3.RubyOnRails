@@ -1,6 +1,6 @@
 require 'uri'
 
-module QueueIT
+module QueueIt
 	class IntegrationEvaluator
 		def getMatchedIntegrationConfig(customerIntegration, currentPageUrl, cookieList, userAgent)
 			if (!customerIntegration.kind_of?(Hash) || !customerIntegration.key?("Integrations") ||

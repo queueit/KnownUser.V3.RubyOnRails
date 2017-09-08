@@ -1,4 +1,4 @@
-module QueueIT
+module QueueIt
 	class QueueUrlParams
 		KEY_VALUE_SEPARATOR_GROUP_CHAR = '~';
 		KEY_VALUE_SEPARATOR_CHAR = '_';

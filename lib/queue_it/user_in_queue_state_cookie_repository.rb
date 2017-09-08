@@ -2,7 +2,7 @@ require 'openssl'
 require 'base64'
 require 'date'
 
-module QueueIT
+module QueueIt
 	class UserInQueueStateCookieRepository 
 		QUEUEIT_DATA_KEY = "QueueITAccepted-SDFrts345E-V3"
     

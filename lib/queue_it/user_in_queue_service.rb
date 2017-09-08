@@ -1,7 +1,7 @@
 require 'open-uri'
 require 'cgi'
 
-module QueueIT
+module QueueIt
 	class UserInQueueService
 		SDK_VERSION = "3.2.2"
     

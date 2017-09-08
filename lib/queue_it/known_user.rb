@@ -1,6 +1,6 @@
 require 'json'
 
-module QueueIT
+module QueueIt
 	class KnownUser
 		QUEUEIT_TOKEN_KEY = "queueittoken"
 		QUEUEIT_DEBUG_KEY = "queueitdebug"
