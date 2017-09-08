@@ -6,8 +6,8 @@ require 'queue_it/version'
 Gem::Specification.new do |spec|
   spec.name          = "queue_it"
   spec.version       = QueueIt::VERSION
-  spec.authors       = ["Jonathan Biolaz"]
-  spec.email         = ["migoo@qoqa.com"]
+  spec.authors       = ["QoQa services SA"]
+  spec.email         = ["dev@qoqa.com"]
 
   spec.summary       = %q{ Gem for implementing QueueIt Know user V3}
   spec.homepage      = "https://queue-it.com/"
