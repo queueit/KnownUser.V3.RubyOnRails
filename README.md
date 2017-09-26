@@ -72,12 +72,15 @@ class ResourceController < ApplicationController
 			customerId = "" # Your Queue-it customer ID
 			secretKey = "" # Your 72 char secret key as specified in Go Queue-it self-service platform
 		
-			requestUrl = request.original_url
+		        requestUrl = request.original_url
+			pattern = Regexp.new("([\\?&])(" + QueueIT::KnownUser::QUEUEIT_TOKEN_KEY + "=[^&]*)", Regexp::IGNORECASE)
+			requestUrlWithoutToken = requestUrl.gsub(pattern, '')
+			
 			queueitToken = request.query_parameters[QueueIT::KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
 
 			# Verify if the user has been through the queue
 			validationResult = QueueIT::KnownUser.validateRequestByIntegrationConfig(
-				requestUrl,
+				requestUrlWithoutToken,
 				queueitToken,
 				configJson,
 				customerId,
@@ -91,9 +94,6 @@ class ResourceController < ApplicationController
 				redirect_to validationResult.redirectUrl
 			else
 				# Request can continue - we remove queueittoken form querystring parameter to avoid sharing of user specific token				
-				pattern = Regexp.new("([\\?&])(" + QueueIT::KnownUser::QUEUEIT_TOKEN_KEY + "=[^&]*)", Regexp::IGNORECASE)
-				requestUrlWithoutToken = requestUrl.gsub(pattern, '')
-				
 				if(requestUrl != requestUrlWithoutToken)
 					redirect_to requestUrlWithoutToken
 				end
