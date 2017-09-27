@@ -106,7 +106,7 @@ end
 ```
 
 ## Installation
-Queue It is distributed as a gem, which is how it should be used in your app.
+Queue It will be distributed as a gem (currently NOT AVAILABLE), which is how it should be used in your app.
 
 Include the gem in your Gemfile:
 
