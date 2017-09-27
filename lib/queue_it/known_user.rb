@@ -1,10 +1,6 @@
 require 'json'
-require_relative 'Models'
-require_relative 'UserInQueueService'
-require_relative 'UserInQueueStateCookieRepository'
-require_relative 'IntegrationConfigHelpers'
 
-module QueueIT
+module QueueIt
 	class KnownUser
 		QUEUEIT_TOKEN_KEY = "queueittoken"
 		QUEUEIT_DEBUG_KEY = "queueitdebug"

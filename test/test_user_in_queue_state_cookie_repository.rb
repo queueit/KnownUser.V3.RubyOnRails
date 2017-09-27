@@ -1,7 +1,7 @@
 require "test/unit"
-require_relative '../UserInQueueStateCookieRepository'
+require_relative '../lib/queue_it'
 
-module QueueIT
+module QueueIt
 	class CookieManagerMockClass 
 		attr_reader :cookieList
 		attr_reader :setCookieCalls

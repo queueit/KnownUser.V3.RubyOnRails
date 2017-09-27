@@ -55,8 +55,6 @@ If we have the `integrationconfig.json` copied in the rails app folder then
 the following example of a controller is all that is needed to validate that a user has been through the queue:
 
 ```ruby
-require 'sdk/Models'
-require 'sdk/KnownUser'
 
 class ResourceController < ApplicationController
 	def index
@@ -108,8 +106,13 @@ end
 ```
 
 ## Installation
-Copy the sdk folder and content into your rails app inside its /lib folder
+Queue It is distributed as a gem, which is how it should be used in your app.
 
+Include the gem in your Gemfile:
+
+```ruby
+gem "queue_it"
+```
 
 ## Alternative Implementation
 If your application server (maybe due to security reasons) is not allowed to do external GET requests, then you have three options:

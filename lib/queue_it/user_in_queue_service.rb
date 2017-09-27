@@ -1,13 +1,9 @@
 require 'open-uri'
 require 'cgi'
 
-require_relative 'Models'
-require_relative 'UserInQueueStateCookieRepository'
-require_relative 'QueueUrlParams'
-
-module QueueIT
+module QueueIt
 	class UserInQueueService
-		SDK_VERSION = "3.2.2"
+		SDK_VERSION = "3.2.3"
     
 		def initialize(userInQueueStateRepository)
 			@userInQueueStateRepository = userInQueueStateRepository
