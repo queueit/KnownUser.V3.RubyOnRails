@@ -57,51 +57,51 @@ the following example of a controller is all that is needed to validate that a u
 ```ruby
 
 class ResourceController < ApplicationController
-	def index
-		begin
-			
-			#Adding no cache headers to prevent browsers to cache requests
-			response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-			response.headers["Pragma"] = "no-cache"
-			response.headers["Expires"] = "Fri, 01 Jan 1990 00:00:00 GMT"
-			#end
-			
-			configJson = File.read('integrationconfig.json')
-			customerId = "" # Your Queue-it customer ID
-			secretKey = "" # Your 72 char secret key as specified in Go Queue-it self-service platform
-		
-		        requestUrl = request.original_url
-			pattern = Regexp.new("([\\?&])(" + QueueIt::KnownUser::QUEUEIT_TOKEN_KEY + "=[^&]*)", Regexp::IGNORECASE)
-			requestUrlWithoutToken = requestUrl.gsub(pattern, '')
-			
-			queueitToken = request.query_parameters[QueueIt::KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
+  def index
+    begin
 
-			# Verify if the user has been through the queue
-			validationResult = QueueIt::KnownUser.validateRequestByIntegrationConfig(
-				requestUrlWithoutToken,
+      #Adding no cache headers to prevent browsers to cache requests
+      response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+      response.headers["Pragma"] = "no-cache"
+      response.headers["Expires"] = "Fri, 01 Jan 1990 00:00:00 GMT"
+      #end
+			
+      configJson = File.read('integrationconfig.json')
+      customerId = "" # Your Queue-it customer ID
+      secretKey = "" # Your 72 char secret key as specified in Go Queue-it self-service platform
+		
+      requestUrl = request.original_url
+      pattern = Regexp.new("([\\?&])(" + QueueIt::KnownUser::QUEUEIT_TOKEN_KEY + "=[^&]*)", Regexp::IGNORECASE)
+      requestUrlWithoutToken = requestUrl.gsub(pattern, '')
+			
+      queueitToken = request.query_parameters[QueueIt::KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
+
+      # Verify if the user has been through the queue
+      validationResult = QueueIt::KnownUser.validateRequestByIntegrationConfig(
+	                        requestUrlWithoutToken,
 				queueitToken,
 				configJson,
 				customerId,
 				secretKey,
 				cookies,
-				request
-			)
+				request)
 
-			if(validationResult.doRedirect)			
-				# Send the user to the queue - either becuase hash was missing or becuase is was invalid
-				redirect_to validationResult.redirectUrl
-			else
-				# Request can continue - we remove queueittoken form querystring parameter to avoid sharing of user specific token				
-				if(requestUrl != requestUrlWithoutToken)
-					redirect_to requestUrlWithoutToken
-				end
-			end
-		rescue StandardError => stdErr
-			# Log the Error
-			puts stdErr.message
-			raise
-		end
+      if(validationResult.doRedirect)			
+        # Send the user to the queue - either becuase hash was missing or becuase is was invalid
+	redirect_to validationResult.redirectUrl
+      else
+        # Request can continue - we remove queueittoken form querystring parameter to avoid sharing of user specific token	
+	if(requestUrl != requestUrlWithoutToken)
+          redirect_to requestUrlWithoutToken
 	end
+      end
+    
+    rescue StandardError => stdErr
+      # Log the Error
+      puts stdErr.message
+      raise
+     end
+  end
 end
 ```
 
