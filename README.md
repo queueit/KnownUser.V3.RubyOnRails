@@ -126,56 +126,54 @@ The following is an example of how to specify the configuration in code:
 
 ```ruby
 class ResourceController < ApplicationController	
-	def index	
-		begin
-		
-			#Adding no cache headers to prevent browsers to cache requests
-			response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-			response.headers["Pragma"] = "no-cache"
-			response.headers["Expires"] = "Fri, 01 Jan 1990 00:00:00 GMT"
-			#end
-			
-			customerId = "" # Your Queue-it customer ID
-			secretKey = "" # Your 72 char secret key as specified in Go Queue-it self-service platform		
-			eventConfig = QueueIt::EventConfig.new
-			eventConfig.eventId = "" # ID of the queue to use
-			eventConfig.queueDomain = "xxx.queue-it.net" # Domian name of the queue - usually in the format [CustomerId].queue-it.net
-			# eventConfig.cookieDomain = ".my-shop.com" # Optional - Domain name where the Queue-it session cookie should be saved
-			eventConfig.cookieValidityMinute = 15 # Optional - Validity of the Queue-it session cookie. Default is 10 minutes
-			eventConfig.extendCookieValidity = true # Optional - Should the Queue-it session cookie validity time be extended each time the validation runs? Default is true.
-			# eventConfig.culture = "da-DK" # Optional - Culture of the queue ticket layout in the format specified here: https:#msdn.microsoft.com/en-us/library/ee825488(v=cs.20).aspx Default is to use what is specified on Event
-			# eventConfig.layoutName = "NameOfYourCustomLayout" # Optional - Name of the queue ticket layout - e.g. "Default layout by Queue-it". Default is to take what is specified on the Event
-
-			requestUrl = request.original_url
-			queueitToken = request.query_parameters[QueueIt::KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
-
-			# Verify if the user has been through the queue
-			validationResult = QueueIt::KnownUser.validateRequestByLocalEventConfig(
-				requestUrl,
-				queueitToken,
-				eventConfig,
-				customerId,
-				secretKey,
-				cookies
-			)
-
-			if(validationResult.doRedirect)			
-				# Send the user to the queue - either becuase hash was missing or becuase is was invalid
-				redirect_to validationResult.redirectUrl
-			else
-				# Request can continue - we remove queueittoken form querystring parameter to avoid sharing of user specific token				
-				pattern = Regexp.new("([\\?&])(" + QueueIt::KnownUser::QUEUEIT_TOKEN_KEY + "=[^&]*)", Regexp::IGNORECASE)
-				requestUrlWithoutToken = requestUrl.gsub(pattern, '')
-				
-				if(requestUrl != requestUrlWithoutToken)
-					redirect_to requestUrlWithoutToken
-				end
-			end
-		rescue StandardError => stdErr
-			# Log the Error
-			puts stdErr.message
-			raise
-		end
-	end
+  def index	
+  	begin 	  
+  	  #Adding no cache headers to prevent browsers to cache requests
+  	  response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+  	  response.headers["Pragma"] = "no-cache"
+  	  response.headers["Expires"] = "Fri, 01 Jan 1990 00:00:00 GMT"
+  	  #end
+  	  
+  	  customerId = "" # Your Queue-it customer ID
+  	  secretKey = "" # Your 72 char secret key as specified in Go Queue-it self-service platform		
+  	  eventConfig = QueueIt::EventConfig.new
+  	  eventConfig.eventId = "" # ID of the queue to use
+  	  eventConfig.queueDomain = "xxx.queue-it.net" # Domian name of the queue - usually in the format [CustomerId].queue-it.net
+  	  # eventConfig.cookieDomain = ".my-shop.com" # Optional - Domain name where the Queue-it session cookie should be saved
+  	  eventConfig.cookieValidityMinute = 15 # Optional - Validity of the Queue-it session cookie. Default is 10 minutes
+  	  eventConfig.extendCookieValidity = true # Optional - Should the Queue-it session cookie validity time be extended each time the validation runs? Default is true.
+  	  # eventConfig.culture = "da-DK" # Optional - Culture of the queue ticket layout in the format specified here: https:#msdn.microsoft.com/en-us/library/ee825488(v=cs.20).aspx Default is to use what is specified on Event
+  	  # eventConfig.layoutName = "NameOfYourCustomLayout" # Optional - Name of the queue ticket layout - e.g. "Default layout by Queue-it". Default is to take what is specified on the Event
+  	  
+  	  requestUrl = request.original_url
+  	  queueitToken = request.query_parameters[QueueIt::KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
+  	  
+  	  # Verify if the user has been through the queue
+  	  validationResult = QueueIt::KnownUser.validateRequestByLocalEventConfig(
+  	  	requestUrl,
+  	  	queueitToken,
+  	  	eventConfig,
+  	  	customerId,
+  	  	secretKey,
+  	  	cookies)
+  	  
+  	  if(validationResult.doRedirect)			
+  	  	# Send the user to the queue - either becuase hash was missing or becuase is was invalid
+  	  	redirect_to validationResult.redirectUrl
+  	  else
+  	  	# Request can continue - we remove queueittoken form querystring parameter to avoid sharing of user specific token				
+  	  	pattern = Regexp.new("([\\?&])(" + QueueIt::KnownUser::QUEUEIT_TOKEN_KEY + "=[^&]*)", Regexp::IGNORECASE)
+  	  	requestUrlWithoutToken = requestUrl.gsub(pattern, '')
+  	  	
+  	  	if(requestUrl != requestUrlWithoutToken)
+  	  		redirect_to requestUrlWithoutToken
+  	  	end
+  	  end
+  	rescue StandardError => stdErr
+  	  # Log the Error
+  	  puts stdErr.message
+  	  raise
+  	end
+  end
 end
 ```
