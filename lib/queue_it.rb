@@ -7,5 +7,4 @@ require_relative "queue_it/user_in_queue_service"
 require_relative "queue_it/integration_config_helpers.rb"
 
 module QueueIt
-  # Your code goes here...
 end
