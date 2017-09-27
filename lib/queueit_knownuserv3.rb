@@ -1,0 +1,10 @@
+require_relative "queueit_knownuserv3/version"
+require_relative "queueit_knownuserv3/known_user"
+require_relative "queueit_knownuserv3/models"
+require_relative "queueit_knownuserv3/queue_url_params"
+require_relative "queueit_knownuserv3/user_in_queue_state_cookie_repository"
+require_relative "queueit_knownuserv3/user_in_queue_service"
+require_relative "queueit_knownuserv3/integration_config_helpers.rb"
+
+module QueueIt
+end

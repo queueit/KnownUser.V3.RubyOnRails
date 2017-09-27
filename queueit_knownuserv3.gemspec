@@ -1,16 +1,16 @@
 # coding: utf-8
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'queue_it/version'
+require 'queueit_knownuserv3/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = "queue_it"
+  spec.name          = "queueit_knownuserv3"
   spec.version       = QueueIt::VERSION
   spec.authors       = ["Queue-it"]
   spec.email         = ["support@queue-it.com"]
 
-  spec.summary       = %q{ Gem for implementing QueueIt Know user V3}
-  spec.homepage      = "https://queue-it.com/"
+  spec.summary       = %q{ Gem for implementing Queue-it KnownUser V3}
+  spec.homepage      = "https://www.queue-it.com/"
 
   # Prevent pushing this gem to RubyGems.org by setting 'allowed_push_host', or
   # delete this section to allow pushing this gem to any host.

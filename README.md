@@ -111,7 +111,7 @@ Queue It is distributed as a gem, which is how it should be used in your app.
 Include the gem in your Gemfile:
 
 ```ruby
-gem "queue_it"
+gem "queueit_knownuserv3"
 ```
 
 ## Alternative Implementation
