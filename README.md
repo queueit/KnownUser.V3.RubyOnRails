@@ -100,7 +100,7 @@ class ResourceController < ApplicationController
       # Log the Error
       puts stdErr.message
       raise
-     end
+    end
   end
 end
 ```
