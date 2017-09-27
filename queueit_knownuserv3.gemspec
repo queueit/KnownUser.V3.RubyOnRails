@@ -5,7 +5,7 @@ require 'queueit_knownuserv3/version'
 
 Gem::Specification.new do |spec|
   spec.name          = "queueit_knownuserv3"
-  spec.version       = QueueIt::VERSION
+  spec.version       = QueueIt::UserInQueueService::SDK_VERSION
   spec.authors       = ["Queue-it"]
   spec.email         = ["support@queue-it.com"]
 
