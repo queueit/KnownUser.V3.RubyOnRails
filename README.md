@@ -90,7 +90,7 @@ class ResourceController < ApplicationController
         # Send the user to the queue - either becuase hash was missing or becuase is was invalid
 	redirect_to validationResult.redirectUrl
       else
-        # Request can continue - we remove queueittoken form querystring parameter to avoid sharing of user specific token	
+        # Request can continue, we remove queueittoken from url to avoid sharing of user specific token	
 	if(requestUrl != requestUrlWithoutToken)
           redirect_to requestUrlWithoutToken
 	end
