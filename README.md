@@ -78,13 +78,13 @@ class ResourceController < ApplicationController
 
       # Verify if the user has been through the queue
       validationResult = QueueIt::KnownUser.validateRequestByIntegrationConfig(
-	                        requestUrlWithoutToken,
-				queueitToken,
-				configJson,
-				customerId,
-				secretKey,
-				cookies,
-				request)
+	                   requestUrlWithoutToken,
+			   queueitToken,
+			   configJson,
+			   customerId,
+			   secretKey,
+			   cookies,
+			   request)
 
       if(validationResult.doRedirect)			
         # Send the user to the queue - either becuase hash was missing or becuase is was invalid
@@ -150,12 +150,12 @@ class ResourceController < ApplicationController
       
       # Verify if the user has been through the queue
       validationResult = QueueIt::KnownUser.validateRequestByLocalEventConfig(
-      	requestUrl,
-      	queueitToken,
-      	eventConfig,
-      	customerId,
-      	secretKey,
-      	cookies)
+      	                   requestUrl,
+			   queueitToken,
+			   eventConfig,
+			   customerId,
+			   secretKey,
+			   cookies)
       
       if(validationResult.doRedirect)			
       	# Send the user to the queue - either becuase hash was missing or becuase is was invalid
