@@ -1,3 +1,3 @@
 module QueueIt
-  VERSION = "0.1.0"
+  VERSION = "3.2.3"
 end
