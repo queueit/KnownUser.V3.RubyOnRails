@@ -1,6 +1,6 @@
 require 'cgi'
 require 'test/unit'
-require_relative '../lib/queue_it'
+require_relative '../../lib/queueit_knownuserv3'
 
 module QueueIt
 	class UserInQueueStateRepositoryMockClass

@@ -1,6 +1,6 @@
 require 'test/unit'
 require 'json'
-require_relative '../lib/queue_it'
+require_relative '../../lib/queueit_knownuserv3'
 
 module QueueIt
 	class HttpRequestMock
@@ -95,7 +95,7 @@ module QueueIt
 		
 			KnownUser.cancelRequestByLocalConfig("url", queueitToken, cancelConfig, "customerId", secretKey, cookieJar, requestMock)
 
-			expectedCookieValue = "targetUrl=url&queueitToken=" + queueitToken + "&OriginalURL=original_url&cancelConfig=EventId:eventId&Version:1&QueueDomain:queueDomain&CookieDomain:cookieDomain"
+			expectedCookieValue = "TargetUrl=url|QueueitToken=" + queueitToken + "|OriginalUrl=original_url|CancelConfig=EventId:eventId&Version:1&QueueDomain:queueDomain&CookieDomain:cookieDomain"
         
 			assert( cookieJar.length == 1 );
 			assert( cookieJar.key?(KnownUser::QUEUEIT_DEBUG_KEY.to_sym) )
@@ -417,7 +417,7 @@ module QueueIt
 		
 			KnownUser.resolveQueueRequestByLocalConfig("url", queueitToken, queueConfig, "customerId", secretKey, cookieJar, requestMock)
 		
-			expectedCookieValue = "targetUrl=url&queueitToken=" + queueitToken + "&OriginalURL=original_url&queueConfig=EventId:eventId&Version:12&QueueDomain:queueDomain&CookieDomain:cookieDomain&ExtendCookieValidity:true&CookieValidityMinute:10&LayoutName:layoutName&Culture:culture"
+			expectedCookieValue = "TargetUrl=url|QueueitToken=" + queueitToken + "|OriginalUrl=original_url|QueueConfig=EventId:eventId&Version:12&QueueDomain:queueDomain&CookieDomain:cookieDomain&ExtendCookieValidity:true&CookieValidityMinute:10&LayoutName:layoutName&Culture:culture"
         
 			assert( cookieJar.length == 1 );
 			assert( cookieJar.key?(KnownUser::QUEUEIT_DEBUG_KEY.to_sym) )
@@ -447,13 +447,13 @@ module QueueIt
 			assert( userInQueueService.validateQueueRequestCalls[0]["secretKey"] == "key" )
 		end
 
-		def test_validateRequestByIntegrationConfig_empty_currentUrl
+		def test_validateRequestByIntegrationConfig_empty_currentUrlWithoutQueueITToken
 			errorThrown = false
         
 			begin
 				KnownUser.validateRequestByIntegrationConfig("", "queueIttoken", nil, "customerId", "secretKey", {}, HttpRequestMock.new)
 			rescue KnownUserError => err
-				errorThrown = err.message.start_with? "currentUrl can not be nil or empty"
+				errorThrown = err.message.start_with? "currentUrlWithoutQueueITToken can not be nil or empty"
 			end
 		
 			assert( errorThrown )
@@ -463,7 +463,7 @@ module QueueIt
 			errorThrown = false
         
 			begin
-				KnownUser.validateRequestByIntegrationConfig("currentUrl", "queueIttoken", nil, "customerId", "secretKey", {}, HttpRequestMock.new)
+				KnownUser.validateRequestByIntegrationConfig("currentUrlWithoutQueueITToken", "queueIttoken", nil, "customerId", "secretKey", {}, HttpRequestMock.new)
 			rescue KnownUserError => err
 				errorThrown = err.message.start_with? "integrationsConfigString can not be nil or empty"
 			end
@@ -475,7 +475,7 @@ module QueueIt
 			errorThrown = false
         
 			begin
-				KnownUser.validateRequestByIntegrationConfig("currentUrl", "queueIttoken", "not-valid-json", "customerId", "secretKey", {}, HttpRequestMock.new)
+				KnownUser.validateRequestByIntegrationConfig("currentUrlWithoutQueueITToken", "queueIttoken", "not-valid-json", "customerId", "secretKey", {}, HttpRequestMock.new)
 			rescue KnownUserError => err
 				errorThrown = err.message.start_with? "integrationConfiguration text was not valid"
 			end
@@ -619,7 +619,7 @@ module QueueIt
 		
 			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", queueitToken, integrationConfigJson, "customerId", secretKey, cookieJar, requestMock)
 
-			expectedCookieValue = "configVersion=3&pureUrl=http://test.com?event1=true&queueitToken=" + queueitToken + "&OriginalURL=original_url&matchedConfig=event1action&targetUrl=http://test.com?event1=true&queueConfig=EventId:event1&Version:3&QueueDomain:knownusertest.queue-it.net&CookieDomain:.test.com&ExtendCookieValidity:true&CookieValidityMinute:20&LayoutName:Christmas Layout by Queue-it&Culture:da-DK"
+			expectedCookieValue = "ConfigVersion=3|PureUrl=http://test.com?event1=true|QueueitToken=" + queueitToken + "|OriginalUrl=original_url|MatchedConfig=event1action|TargetUrl=http://test.com?event1=true|QueueConfig=EventId:event1&Version:3&QueueDomain:knownusertest.queue-it.net&CookieDomain:.test.com&ExtendCookieValidity:true&CookieValidityMinute:20&LayoutName:Christmas Layout by Queue-it&Culture:da-DK"
         
 			assert( cookieJar.length == 1 );
 			assert( cookieJar.key?(KnownUser::QUEUEIT_DEBUG_KEY.to_sym) )
@@ -675,7 +675,7 @@ module QueueIt
 			integrationConfigJson = JSON.generate(integrationConfig)
 			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", queueitToken, integrationConfigJson, "customerId", secretKey, cookieJar, requestMock)
 
-			expectedCookieValue = "configVersion=3&pureUrl=http://test.com?event1=true&queueitToken=" + queueitToken + "&OriginalURL=original_url&matchedConfig=NULL"
+			expectedCookieValue = "ConfigVersion=3|PureUrl=http://test.com?event1=true|QueueitToken=" + queueitToken + "|OriginalUrl=original_url|MatchedConfig=NULL"
         
 			assert( cookieJar.length == 1 );
 			assert( cookieJar.key?(KnownUser::QUEUEIT_DEBUG_KEY.to_sym) )

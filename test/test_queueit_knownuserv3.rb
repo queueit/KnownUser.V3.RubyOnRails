@@ -1,0 +1,5 @@
+require_relative "queueit_knownuserv3/test_integration_config_helpers"
+require_relative "queueit_knownuserv3/test_known_user"
+require_relative "queueit_knownuserv3/test_queue_url_params"
+require_relative "queueit_knownuserv3/test_user_in_queue_service"
+require_relative "queueit_knownuserv3/test_user_in_queue_state_cookie_repository"
