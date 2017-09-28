@@ -1,7 +1,7 @@
 # coding: utf-8
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'queueit_knownuserv3/version'
+require 'queueit_knownuserv3/user_in_queue_service'
 
 Gem::Specification.new do |spec|
   spec.name          = "queueit_knownuserv3"
