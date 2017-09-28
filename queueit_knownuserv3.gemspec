@@ -8,7 +8,7 @@ Gem::Specification.new do |spec|
   spec.version       = QueueIt::UserInQueueService::SDK_VERSION
   spec.authors       = ["Queue-it"]
   spec.email         = ["support@queue-it.com"]
-
+  spec.licenses      = "LGPL-3.0"
   spec.summary       = %q{ Gem for implementing Queue-it KnownUser V3}
   spec.homepage      = "https://www.queue-it.com/"
 
