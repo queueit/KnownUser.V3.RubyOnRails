@@ -53,9 +53,9 @@ module QueueIt
 			cookieManager = CookieManager.new(cookieJar)
 			cookieValue = ''
 			debugEntries.each do |entry|
-				cookieValue << (entry[0].to_s + '=' + entry[1].to_s + '&')
+				cookieValue << (entry[0].to_s + '=' + entry[1].to_s + '|')
 			end
-			cookieValue = cookieValue.chop # remove trailing '&'		
+			cookieValue = cookieValue.chop # remove trailing char		
 			cookieManager.setCookie(QUEUEIT_DEBUG_KEY, cookieValue, nil, nil)
 		end
 		private_class_method :setDebugCookie
@@ -63,13 +63,13 @@ module QueueIt
 		def self._resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, cookieJar, request, debugEntries)
 			isDebug = getIsDebug(queueitToken, secretKey)
 			if(isDebug)
-				debugEntries["targetUrl"] = targetUrl
-				debugEntries["queueitToken"] = queueitToken
-				debugEntries["OriginalURL"] = request.original_url            
+				debugEntries["TargetUrl"] = targetUrl
+				debugEntries["QueueitToken"] = queueitToken
+				debugEntries["OriginalUrl"] = request.original_url            
 				if(queueConfig == nil)
-					debugEntries["queueConfig"] = "NULL"
+					debugEntries["QueueConfig"] = "NULL"
 				else
-					debugEntries["queueConfig"] = queueConfig.toString()
+					debugEntries["QueueConfig"] = queueConfig.toString()
 				end
 			end
 		
@@ -110,13 +110,13 @@ module QueueIt
 		def self._cancelRequestByLocalConfig(targetUrl, queueitToken, cancelConfig, customerId, secretKey, cookieJar, request, debugEntries)
 			isDebug = getIsDebug(queueitToken, secretKey)
 			if(isDebug)
-				debugEntries["targetUrl"] = targetUrl
-				debugEntries["queueitToken"] = queueitToken
-				debugEntries["OriginalURL"] = request.original_url
+				debugEntries["TargetUrl"] = targetUrl
+				debugEntries["QueueitToken"] = queueitToken
+				debugEntries["OriginalUrl"] = request.original_url
 				if(cancelConfig == nil)
-					debugEntries["cancelConfig"] = "NULL"
+					debugEntries["CancelConfig"] = "NULL"
 				else
-					debugEntries["cancelConfig"] = cancelConfig.toString()
+					debugEntries["CancelConfig"] = cancelConfig.toString()
 				end
 			end
 		
@@ -176,9 +176,9 @@ module QueueIt
 			end
 		end
 
-		def self.validateRequestByIntegrationConfig(currentUrl, queueitToken, integrationsConfigString, customerId, secretKey, cookieJar, request)
-			if(Utils.isNilOrEmpty(currentUrl))
-				raise KnownUserError, "currentUrl can not be nil or empty."
+		def self.validateRequestByIntegrationConfig(currentUrlWithoutQueueITToken, queueitToken, integrationsConfigString, customerId, secretKey, cookieJar, request)
+			if(Utils.isNilOrEmpty(currentUrlWithoutQueueITToken))
+				raise KnownUserError, "currentUrlWithoutQueueITToken can not be nil or empty."
 			end
 
 			if(Utils.isNilOrEmpty(integrationsConfigString))
@@ -191,20 +191,20 @@ module QueueIt
 				debugEntries = Hash.new		
 				isDebug = getIsDebug(queueitToken, secretKey)
 				if(isDebug)
-					debugEntries["configVersion"] = customerIntegration["Version"]
-					debugEntries["pureUrl"] = currentUrl
-					debugEntries["queueitToken"] = queueitToken
-					debugEntries["OriginalURL"] = request.original_url
+					debugEntries["ConfigVersion"] = customerIntegration["Version"]
+					debugEntries["PureUrl"] = currentUrlWithoutQueueITToken
+					debugEntries["QueueitToken"] = queueitToken
+					debugEntries["OriginalUrl"] = request.original_url
 				end
 			
 				integrationEvaluator = IntegrationEvaluator.new
-				matchedConfig = integrationEvaluator.getMatchedIntegrationConfig(customerIntegration, currentUrl, cookieJar, request.user_agent)
+				matchedConfig = integrationEvaluator.getMatchedIntegrationConfig(customerIntegration, currentUrlWithoutQueueITToken, cookieJar, request.user_agent)
 
 				if(isDebug)
 					if(matchedConfig == nil)
-						debugEntries["matchedConfig"] = "NULL"
+						debugEntries["MatchedConfig"] = "NULL"
 					else
-						debugEntries["matchedConfig"] = matchedConfig["Name"]
+						debugEntries["MatchedConfig"] = matchedConfig["Name"]
 					end
 				end
 
@@ -229,7 +229,7 @@ module QueueIt
 						when "EventTargetUrl"
 							targetUrl = ''
 						else
-							targetUrl = currentUrl
+							targetUrl = currentUrlWithoutQueueITToken
 					end
 
 					return _resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, cookieJar, request, debugEntries)			
@@ -241,7 +241,7 @@ module QueueIt
 					cancelConfig.cookieDomain = matchedConfig["CookieDomain"]
 					cancelConfig.version = customerIntegration["Version"]
             
-					return _cancelRequestByLocalConfig(currentUrl, queueitToken, cancelConfig, customerId, secretKey, cookieJar, request, debugEntries);
+					return _cancelRequestByLocalConfig(currentUrlWithoutQueueITToken, queueitToken, cancelConfig, customerId, secretKey, cookieJar, request, debugEntries);
 				end
 			rescue StandardError => stdErr
 				raise KnownUserError, "integrationConfiguration text was not valid: " + stdErr.message
