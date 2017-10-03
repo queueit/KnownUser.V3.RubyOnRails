@@ -135,7 +135,7 @@ class ResourceController < ApplicationController
       
       customerId = "" # Your Queue-it customer ID
       secretKey = "" # Your 72 char secret key as specified in Go Queue-it self-service platform		
-      eventConfig = QueueIt::EventConfig.new
+      eventConfig = QueueIt::QueueEventConfig.new
       eventConfig.eventId = "" # ID of the queue to use
       eventConfig.queueDomain = "xxx.queue-it.net" # Domian name of the queue - usually in the format [CustomerId].queue-it.net
       # eventConfig.cookieDomain = ".my-shop.com" # Optional - Domain name where the Queue-it session cookie should be saved
@@ -148,7 +148,7 @@ class ResourceController < ApplicationController
       queueitToken = request.query_parameters[QueueIt::KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
       
       # Verify if the user has been through the queue
-      validationResult = QueueIt::KnownUser.validateRequestByLocalEventConfig(
+      validationResult = QueueIt::KnownUser.resolveRequestByLocalEventConfig(
       	                   requestUrl,
 			   queueitToken,
 			   eventConfig,
