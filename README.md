@@ -82,8 +82,7 @@ class ResourceController < ApplicationController
 			   queueitToken,
 			   configJson,
 			   customerId,
-			   secretKey,
-			   cookies,
+			   secretKey,			   
 			   request)
 
       if(validationResult.doRedirect)			
@@ -155,7 +154,7 @@ class ResourceController < ApplicationController
 			   eventConfig,
 			   customerId,
 			   secretKey,
-			   cookies)
+			   request)
       
       if(validationResult.doRedirect)			
       	# Send the user to the queue - either becuase hash was missing or becuase is was invalid

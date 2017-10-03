@@ -2,7 +2,7 @@ require 'uri'
 
 module QueueIt
 	class IntegrationEvaluator
-		def getMatchedIntegrationConfig(customerIntegration, currentPageUrl, cookieList, userAgent)
+		def getMatchedIntegrationConfig(customerIntegration, currentPageUrl, request)
 			if (!customerIntegration.kind_of?(Hash) || !customerIntegration.key?("Integrations") ||
 				!customerIntegration["Integrations"].kind_of?(Array))
 				return nil;
@@ -14,7 +14,7 @@ module QueueIt
 					if(!trigger.kind_of?(Hash))
 						return false
 					end
-					if(evaluateTrigger(trigger, currentPageUrl, cookieList, userAgent))
+					if(evaluateTrigger(trigger, currentPageUrl, request))
 						return integrationConfig
 					end
 				end
@@ -23,7 +23,7 @@ module QueueIt
 			return nil
 		end
 
-		def evaluateTrigger(trigger, currentPageUrl, cookieList, userAgent)
+		def evaluateTrigger(trigger, currentPageUrl, request)
 			if (!trigger.key?("LogicalOperator") ||
 				!trigger.key?("TriggerParts") ||
 				!trigger["TriggerParts"].kind_of?(Array))
@@ -35,7 +35,7 @@ module QueueIt
 					if(!triggerPart.kind_of?(Hash))
 						return false
 					end
-					if(evaluateTriggerPart(triggerPart, currentPageUrl, cookieList, userAgent))
+					if(evaluateTriggerPart(triggerPart, currentPageUrl, request))
 						return true
 					end
 				end
@@ -45,7 +45,7 @@ module QueueIt
 					if(!triggerPart.kind_of?(Hash))
 						return false
 					end
-					if(!evaluateTriggerPart(triggerPart, currentPageUrl, cookieList, userAgent))
+					if(!evaluateTriggerPart(triggerPart, currentPageUrl, request))
 						return false
 					end
 				end
@@ -53,7 +53,7 @@ module QueueIt
 			end
 		end
 
-		def evaluateTriggerPart(triggerPart, currentPageUrl, cookieList, userAgent)
+		def evaluateTriggerPart(triggerPart, currentPageUrl, request)
 			if (!triggerPart.key?("ValidatorType"))
 				return false
 			end
@@ -62,9 +62,11 @@ module QueueIt
 				when "UrlValidator"
 					return UrlValidatorHelper.evaluate(triggerPart, currentPageUrl)
 				when "CookieValidator"
-					return CookieValidatorHelper.evaluate(triggerPart, cookieList)
+					return CookieValidatorHelper.evaluate(triggerPart, request.cookie_jar)
 				when "UserAgentValidator"
-					return UserAgentValidatorHelper.evaluate(triggerPart, userAgent)
+					return UserAgentValidatorHelper.evaluate(triggerPart, request.user_agent)
+				when "HttpHeaderValidator"
+					return HttpHeaderValidatorHelper.evaluate(triggerPart, request.headers)
 				else
 					return false
 			end
@@ -111,7 +113,7 @@ module QueueIt
 	end
 
 	class CookieValidatorHelper
-		def self.evaluate(triggerPart, cookieList)
+		def self.evaluate(triggerPart, cookieJar)
 			begin
 				if (!triggerPart.key?("Operator") ||
 					!triggerPart.key?("IsNegative") ||
@@ -121,14 +123,14 @@ module QueueIt
 					return false;
 				end
 
-				if(cookieList.nil?)
+				if(cookieJar.nil?)
 					return false
 				end
 
 				cookieName = triggerPart["CookieName"]
 				cookieValue = ''
-				if(!cookieName.nil? && !cookieList[cookieName.to_sym].nil?)
-					cookieValue = cookieList[cookieName.to_sym]
+				if(!cookieName.nil? && !cookieJar[cookieName.to_sym].nil?)
+					cookieValue = cookieJar[cookieName.to_sym]
 				end
 				return ComparisonOperatorHelper.evaluate(
 					triggerPart["Operator"], 
@@ -158,6 +160,22 @@ module QueueIt
 					triggerPart["IsIgnoreCase"], 
 					userAgent, 
 					triggerPart["ValueToCompare"])
+			end
+		end
+	end
+
+	class HttpHeaderValidatorHelper
+		def self.evaluate(triggerPart, headers)
+			begin				
+				headerValue = headers[triggerPart['HttpHeaderName']]
+				return ComparisonOperatorHelper.evaluate(
+					triggerPart["Operator"], 
+					triggerPart["IsNegative"], 
+					triggerPart["IsIgnoreCase"], 
+					headerValue, 
+					triggerPart["ValueToCompare"])				
+			rescue
+				return false
 			end
 		end
 	end

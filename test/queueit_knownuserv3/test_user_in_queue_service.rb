@@ -143,7 +143,7 @@ module QueueIt
 			token = generateHash('e1','queueId', (Time.now.getutc.to_i + (3 * 60)).to_s, 'False', nil, key)
 			token = token.sub("False", 'True')
    	    
-			expectedErrorUrl = "https://testDomain.com/error/hash?c=testCustomer&e=e1" + 
+			expectedErrorUrl = "https://testDomain.com/error/hash/?c=testCustomer&e=e1" + 
 					"&ver=v3-ruby-" + UserInQueueService::SDK_VERSION +
 					 "&cver=11" +
 					 "&queueittoken=" + token +
@@ -175,7 +175,7 @@ module QueueIt
 			cookieProviderMock = UserInQueueStateRepositoryMockClass.new
 			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false,nil, false,   -1))
 			token = generateHash('e1','queueId', (Time.now.getutc.to_i - (3 * 60)).to_s, 'False', nil, key)
-			expectedErrorUrl = "https://testDomain.com/error/timestamp?c=testCustomer&e=e1" + 
+			expectedErrorUrl = "https://testDomain.com/error/timestamp/?c=testCustomer&e=e1" + 
 					  "&ver=v3-ruby-" + UserInQueueService::SDK_VERSION +
 						"&cver=11" +
 					 "&queueittoken=" + token +
@@ -206,7 +206,7 @@ module QueueIt
 			cookieProviderMock = UserInQueueStateRepositoryMockClass.new
 			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false,nil, false,   -1))
 			token = generateHash('e1', 'queueId',(Time.now.getutc.to_i - (3 * 60)).to_s, 'False', nil, key)
-			expectedErrorUrl = "https://testDomain.com/error/eventid?c=testCustomer&e=e2" + 
+			expectedErrorUrl = "https://testDomain.com/error/eventid/?c=testCustomer&e=e2" + 
 					"&ver=v3-ruby-" + UserInQueueService::SDK_VERSION + "&cver=11" +
 					"&queueittoken=" + token +
 					"&t=" + CGI.escape(url)
@@ -280,7 +280,7 @@ module QueueIt
 			cookieProviderMock = UserInQueueStateRepositoryMockClass.new()
 			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false, nil, false,   -1))
 			token = ""
-			expectedErrorUrl = "https://testDomain.com?c=testCustomer&e=e1" +
+			expectedRedirectUrl = "https://testDomain.com?c=testCustomer&e=e1" +
 					"&ver=v3-ruby-" + UserInQueueService::SDK_VERSION + "&cver=11"  + "&cid=en-US" +
 					"&l=testlayout"+"&t=" + CGI.escape(url)
 			testObject = UserInQueueService.new(cookieProviderMock)
@@ -289,7 +289,7 @@ module QueueIt
 			assert(result.doRedirect())
 			assert(result.eventId == 'e1')
 			 assert(result.queueId == nil)
-			assert(result.redirectUrl.upcase() == expectedErrorUrl.upcase())
+			assert(result.redirectUrl.upcase() == expectedRedirectUrl.upcase())
 		end
     
 		def test_NoCookie_NoValidToken_WithoutToken_RedirectToQueue_NoTargetUrl
@@ -305,7 +305,7 @@ module QueueIt
 			cookieProviderMock = UserInQueueStateRepositoryMockClass.new()
 			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false, nil, false, -1))
 			token = ""
-			expectedErrorUrl = "https://testDomain.com?c=testCustomer&e=e1" +
+			expectedRedirectUrl = "https://testDomain.com?c=testCustomer&e=e1" +
 					"&ver=v3-ruby-" + UserInQueueService::SDK_VERSION + "&cver=11" + "&cid=en-US" +
 					"&l=testlayout"
 			testObject = UserInQueueService.new(cookieProviderMock)
@@ -314,7 +314,7 @@ module QueueIt
 			assert(result.doRedirect())
 			assert(result.eventId == 'e1')
 			 assert(result.queueId == nil)
-			assert(result.redirectUrl.upcase() == expectedErrorUrl.upcase())
+			assert(result.redirectUrl.upcase() == expectedRedirectUrl.upcase())
 		end
 
 		def test_ValidateQueueRequest_NoCookie_InValidToken
@@ -336,7 +336,7 @@ module QueueIt
 			assert(result.doRedirect())
 			assert(result.eventId == 'e1')
 			   assert(result.queueId == nil)
-			assert(result.redirectUrl.start_with?("https://testDomain.com/error/hash?c=testCustomer&e=e1"))
+			assert(result.redirectUrl.start_with?("https://testDomain.com/error/hash/?c=testCustomer&e=e1"))
 		end
 
 		def test_validateCancelRequest

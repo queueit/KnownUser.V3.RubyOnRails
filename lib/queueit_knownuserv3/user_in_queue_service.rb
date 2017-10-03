@@ -3,7 +3,7 @@ require 'cgi'
 
 module QueueIt
 	class UserInQueueService
-		SDK_VERSION = "3.2.3"
+		SDK_VERSION = "3.3.0"
     
 		def initialize(userInQueueStateRepository)
 			@userInQueueStateRepository = userInQueueStateRepository
@@ -82,7 +82,7 @@ module QueueIt
 			if (!domainAlias.end_with?("/") )
 				domainAlias = domainAlias + "/"
 			end
-			redirectUrl = "https://" + domainAlias + "error/" + errorCode + "?"  + query
+			redirectUrl = "https://" + domainAlias + "error/" + errorCode + "/?"  + query
 			return RequestValidationResult.new(ActionTypes::QUEUE, config.eventId, nil, redirectUrl)        
 		end
 

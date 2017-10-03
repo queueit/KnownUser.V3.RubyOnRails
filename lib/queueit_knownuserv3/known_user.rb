@@ -60,7 +60,7 @@ module QueueIt
 		end
 		private_class_method :setDebugCookie
 
-		def self._resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, cookieJar, request, debugEntries)
+		def self._resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, request, debugEntries)
 			isDebug = getIsDebug(queueitToken, secretKey)
 			if(isDebug)
 				debugEntries["TargetUrl"] = targetUrl
@@ -102,12 +102,12 @@ module QueueIt
 				raise KnownUserError, "queueConfig.extendCookieValidity should be valid boolean."
 			end
 
-			userInQueueService = getUserInQueueService(cookieJar)
+			userInQueueService = getUserInQueueService(request.cookie_jar)
 			userInQueueService.validateQueueRequest(targetUrl, queueitToken, queueConfig, customerId, secretKey)
 		end
 		private_class_method :_resolveQueueRequestByLocalConfig
 	
-		def self._cancelRequestByLocalConfig(targetUrl, queueitToken, cancelConfig, customerId, secretKey, cookieJar, request, debugEntries)
+		def self._cancelRequestByLocalConfig(targetUrl, queueitToken, cancelConfig, customerId, secretKey, request, debugEntries)
 			isDebug = getIsDebug(queueitToken, secretKey)
 			if(isDebug)
 				debugEntries["TargetUrl"] = targetUrl
@@ -144,12 +144,12 @@ module QueueIt
 				raise KnownUserError, "cancelConfig.queueDomain can not be nil or empty."
 			end
 
-			userInQueueService = getUserInQueueService(cookieJar)
+			userInQueueService = getUserInQueueService(request.cookie_jar)
 			userInQueueService.validateCancelRequest(targetUrl, cancelConfig, customerId, secretKey)
 		end
 		private_class_method :_cancelRequestByLocalConfig
 
-		def self.extendQueueCookie(eventId, cookieValidityMinute, cookieDomain, secretKey, cookieJar)
+		def self.extendQueueCookie(eventId, cookieValidityMinute, cookieDomain, secretKey, request)
 			if(Utils.isNilOrEmpty(eventId))
 				raise KnownUserError, "eventId can not be nil or empty."
 			end
@@ -163,20 +163,20 @@ module QueueIt
 				raise KnownUserError, "cookieValidityMinute should be integer greater than 0."	
 			end
 
-			userInQueueService = getUserInQueueService(cookieJar)
+			userInQueueService = getUserInQueueService(request.cookie_jar)
 			userInQueueService.extendQueueCookie(eventId, cookieValidityMinute, cookieDomain, secretKey)
 		end
 
-		def self.resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, cookieJar, request)
+		def self.resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, request)
 			debugEntries = Hash.new
 			begin
-				return _resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, cookieJar, request, debugEntries)
+				return _resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, request, debugEntries)
 			ensure
-				setDebugCookie(debugEntries, cookieJar)
+				setDebugCookie(debugEntries, request.cookie_jar)
 			end
 		end
 
-		def self.validateRequestByIntegrationConfig(currentUrlWithoutQueueITToken, queueitToken, integrationsConfigString, customerId, secretKey, cookieJar, request)
+		def self.validateRequestByIntegrationConfig(currentUrlWithoutQueueITToken, queueitToken, integrationsConfigString, customerId, secretKey, request)
 			if(Utils.isNilOrEmpty(currentUrlWithoutQueueITToken))
 				raise KnownUserError, "currentUrlWithoutQueueITToken can not be nil or empty."
 			end
@@ -198,7 +198,7 @@ module QueueIt
 				end
 			
 				integrationEvaluator = IntegrationEvaluator.new
-				matchedConfig = integrationEvaluator.getMatchedIntegrationConfig(customerIntegration, currentUrlWithoutQueueITToken, cookieJar, request.user_agent)
+				matchedConfig = integrationEvaluator.getMatchedIntegrationConfig(customerIntegration, currentUrlWithoutQueueITToken, request)
 
 				if(isDebug)
 					if(matchedConfig == nil)
@@ -232,7 +232,7 @@ module QueueIt
 							targetUrl = currentUrlWithoutQueueITToken
 					end
 
-					return _resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, cookieJar, request, debugEntries)			
+					return _resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, request, debugEntries)			
 			
 				else # cancel action			
 					cancelConfig = CancelEventConfig.new;
@@ -241,21 +241,21 @@ module QueueIt
 					cancelConfig.cookieDomain = matchedConfig["CookieDomain"]
 					cancelConfig.version = customerIntegration["Version"]
             
-					return _cancelRequestByLocalConfig(currentUrlWithoutQueueITToken, queueitToken, cancelConfig, customerId, secretKey, cookieJar, request, debugEntries);
+					return _cancelRequestByLocalConfig(currentUrlWithoutQueueITToken, queueitToken, cancelConfig, customerId, secretKey, request, debugEntries);
 				end
 			rescue StandardError => stdErr
 				raise KnownUserError, "integrationConfiguration text was not valid: " + stdErr.message
 			ensure
-				setDebugCookie(debugEntries, cookieJar)
+				setDebugCookie(debugEntries, request.cookie_jar)
 			end
 		end
 
-		def self.cancelRequestByLocalConfig(targetUrl, queueitToken, cancelConfig, customerId, secretKey, cookieJar, request)
+		def self.cancelRequestByLocalConfig(targetUrl, queueitToken, cancelConfig, customerId, secretKey, request)
 			debugEntries = Hash.new
 			begin
-				return _cancelRequestByLocalConfig(targetUrl, queueitToken, cancelConfig, customerId, secretKey, cookieJar, request, debugEntries)
+				return _cancelRequestByLocalConfig(targetUrl, queueitToken, cancelConfig, customerId, secretKey, request, debugEntries)
 			ensure
-				setDebugCookie(debugEntries, cookieJar)
+				setDebugCookie(debugEntries, request.cookie_jar)
 			end
 		end
 	end

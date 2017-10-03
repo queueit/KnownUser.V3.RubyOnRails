@@ -2,6 +2,12 @@ require 'test/unit'
 require_relative '../../lib/queueit_knownuserv3'
 
 module QueueIt
+	class HttpRequestMock
+		attr_accessor :user_agent
+		attr_accessor :original_url
+		attr_accessor :cookie_jar
+	end
+	
 	class TestIntegrationEvaluator < Test::Unit::TestCase
 		def test_getMatchedIntegrationConfig_oneTrigger_and_notMatched
 			integrationConfig = 
@@ -40,8 +46,8 @@ module QueueIt
 		
 			url = "http://test.testdomain.com:8080/test?q=2";
 			testObject = IntegrationEvaluator.new;
-			matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, {}, "")
-			assert( matchedConfig == nil);
+			matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, HttpRequestMock.new)
+			assert(matchedConfig == nil);
 		end
 
 		def test_getMatchedIntegrationConfig_oneTrigger_and_matched
@@ -81,8 +87,10 @@ module QueueIt
 			}
 		
 			url = "http://test.testdomain.com:8080/test?q=2";
+			requestMock = HttpRequestMock.new
+			requestMock.cookie_jar = { :c2 => "ddd", :c1 => "Value1" }
 			testObject = IntegrationEvaluator.new;
-			matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, { :c2 => "ddd", :c1 => "Value1" }, "")		
+			matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, requestMock)		
 			assert( matchedConfig["Name"].eql? "integration1" );
 		end
 
@@ -130,8 +138,11 @@ module QueueIt
 			}
 		
 			url = "http://test.testdomain.com:8080/test?q=2";
+			requestMock = HttpRequestMock.new
+			requestMock.user_agent = "bot.html google.com googlebot test"
+			requestMock.cookie_jar = { :c2 => "ddd", :c1 => "Value1" }
 			testObject = IntegrationEvaluator.new;
-			matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, { :c2 => "ddd", :c1 => "Value1" }, "bot.html google.com googlebot test")		
+			matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, requestMock)
 			assert( matchedConfig == nil);
 		end
 
@@ -172,8 +183,10 @@ module QueueIt
 			}
 		
 			url = "http://test.testdomain.com:8080/test?q=2";
+			requestMock = HttpRequestMock.new
+			requestMock.cookie_jar = { :c2 => "ddd", :c1 => "Value1" }
 			testObject = IntegrationEvaluator.new;
-			matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, { :c2 => "ddd", :c1 => "Value1" }, "")		
+			matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, requestMock)		
 			assert( matchedConfig == nil );
 		end
 
@@ -214,8 +227,10 @@ module QueueIt
 			}
 		
 			url = "http://test.testdomain.com:8080/test?q=2";
+			requestMock = HttpRequestMock.new
+			requestMock.cookie_jar = { :c2 => "ddd", :c1 => "Value1" }
 			testObject = IntegrationEvaluator.new;
-			matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, { :c2 => "ddd", :c1 => "Value1" }, "")		
+			matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, requestMock)
 			assert( matchedConfig["Name"].eql? "integration1" );
 		end
 
@@ -270,8 +285,10 @@ module QueueIt
 			}
 		
 			url = "http://test.testdomain.com:8080/test?q=2";
+			requestMock = HttpRequestMock.new
+			requestMock.cookie_jar = { :c2 => "ddd", :c1 => "Value1" }
 			testObject = IntegrationEvaluator.new;
-			matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, { :c2 => "ddd", :c1 => "Value1" }, "")		
+			matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, requestMock)
 			assert( matchedConfig["Name"].eql? "integration1" );	
 		end
 
@@ -344,8 +361,10 @@ module QueueIt
 			}
 		
 			url = "http://test.testdomain.com:8080/test?q=2";
+			requestMock = HttpRequestMock.new
+			requestMock.cookie_jar = { :c2 => "ddd", :c1 => "Value1" }
 			testObject = IntegrationEvaluator.new;
-			matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, { :c2 => "ddd", :c1 => "Value1" }, "")		
+			matchedConfig = testObject.getMatchedIntegrationConfig(integrationConfig, url, requestMock)
 			assert( matchedConfig["Name"].eql? "integration1" );			
 		end
 	end
@@ -435,6 +454,7 @@ module QueueIt
 			assert( UserAgentValidatorHelper.evaluate(triggerPart, "Googlebot") )
 		end
 	end
+
 	class TestCookieValidatorHelper < Test::Unit::TestCase
 		def test_evaluate
 			triggerPart = 
@@ -447,7 +467,6 @@ module QueueIt
 			}
 			assert( !CookieValidatorHelper.evaluate(triggerPart, {:c1 => "hhh"}) )        
 
-			triggerPart = {}
 			triggerPart = 
 			{
 				"CookieName" => "c1",
@@ -474,7 +493,38 @@ module QueueIt
 				"IsNegative" => true,
 				"ValueToCompare" => "1"
 			}
-			assert( !CookieValidatorHelper.evaluate(triggerPart, {:c2 => "ddd", :c1 => "1"}) )	
+			assert( !CookieValidatorHelper.evaluate(triggerPart, {:c2 => "ddd", :c1 => "1"}) )
+		end
+	end
+
+	class TestHttpHeaderValidatorHelper < Test::Unit::TestCase
+		def test_evaluate
+			triggerPart = 
+			{
+				"HttpHeaderName" => "a-header",
+				"Operator" => "Contains",
+				"IsIgnoreCase" => true,
+				"IsNegative" => false,
+				"ValueToCompare" => "value"
+			}
+			assert( HttpHeaderValidatorHelper.evaluate(triggerPart, {'a-header' => "VaLuE"}) )
+
+			triggerPart = 
+			{
+				"HttpHeaderName" => "a-header",
+				"Operator" => "Contains",
+				"ValueToCompare" => "value"
+			}
+			assert( !HttpHeaderValidatorHelper.evaluate(triggerPart, {'a-header' => "not" }) )
+			
+			triggerPart = 
+			{
+				"HttpHeaderName" => "a-header",
+				"Operator" => "Contains",
+				"ValueToCompare" => "value",
+				"IsNegative" => true,
+			}
+			assert( HttpHeaderValidatorHelper.evaluate(triggerPart, {'a-header' => "not" }) )
 		end
 	end
 
