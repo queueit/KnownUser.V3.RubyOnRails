@@ -59,13 +59,7 @@ the following example of a controller is all that is needed to validate that a u
 class ResourceController < ApplicationController
   def index
     begin
-
-      #Adding no cache headers to prevent browsers to cache requests
-      response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-      response.headers["Pragma"] = "no-cache"
-      response.headers["Expires"] = "Fri, 01 Jan 1990 00:00:00 GMT"
-      #end
-			
+	
       configJson = File.read('integrationconfig.json')
       customerId = "" # Your Queue-it customer ID
       secretKey = "" # Your 72 char secret key as specified in Go Queue-it self-service platform
@@ -85,7 +79,13 @@ class ResourceController < ApplicationController
 			   secretKey,			   
 			   request)
 
-      if(validationResult.doRedirect)			
+      if(validationResult.doRedirect)	
+      
+        #Adding no cache headers to prevent browsers to cache requests
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "Fri, 01 Jan 1990 00:00:00 GMT"
+        #end
         # Send the user to the queue - either becuase hash was missing or becuase is was invalid
 	redirect_to validationResult.redirectUrl
       else
@@ -127,12 +127,7 @@ The following is an example of how to specify the configuration in code:
 class ResourceController < ApplicationController	
   def index	
     begin 	  
-      #Adding no cache headers to prevent browsers to cache requests
-      response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-      response.headers["Pragma"] = "no-cache"
-      response.headers["Expires"] = "Fri, 01 Jan 1990 00:00:00 GMT"
-      #end
-      
+     
       customerId = "" # Your Queue-it customer ID
       secretKey = "" # Your 72 char secret key as specified in Go Queue-it self-service platform		
       eventConfig = QueueIt::QueueEventConfig.new
@@ -156,7 +151,12 @@ class ResourceController < ApplicationController
 			   secretKey,
 			   request)
       
-      if(validationResult.doRedirect)			
+      if(validationResult.doRedirect)	
+        #Adding no cache headers to prevent browsers to cache requests
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "Fri, 01 Jan 1990 00:00:00 GMT"
+        #end
       	# Send the user to the queue - either becuase hash was missing or becuase is was invalid
       	redirect_to validationResult.redirectUrl
       else
