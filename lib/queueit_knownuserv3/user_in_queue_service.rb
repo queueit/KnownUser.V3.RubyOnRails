@@ -3,7 +3,7 @@ require 'cgi'
 
 module QueueIt
 	class UserInQueueService
-		SDK_VERSION = "3.3.0"
+		SDK_VERSION = "3.3.2"
     
 		def initialize(userInQueueStateRepository)
 			@userInQueueStateRepository = userInQueueStateRepository

@@ -5,8 +5,16 @@ require_relative '../../lib/queueit_knownuserv3'
 module QueueIt
 	class HttpRequestMock
 		attr_accessor :user_agent
-		attr_accessor :original_url
+		attr_accessor :env
+		attr_accessor :original_fullpath
 		attr_accessor :cookie_jar
+		attr_accessor :remote_ip
+		attr_accessor :headers
+
+		def setRealOriginalUrl(proto, host, path)
+			@env = {"rack.url_scheme" => proto, "HTTP_HOST" => host}
+			@original_fullpath = path
+		end
 	end
 
 	class UserInQueueServiceMock
@@ -88,19 +96,38 @@ module QueueIt
 			cancelConfig.cookieDomain = "cookieDomain"
 
 			requestMock = HttpRequestMock.new
-			requestMock.original_url = "original_url"
+			requestMock.setRealOriginalUrl("http", "localhost", "/original_url")
 			requestMock.cookie_jar = {}
+			requestMock.remote_ip = "userIP"
+			requestMock.headers = {
+				"via" => "v", 
+				"forwarded" => "f", 
+				"x-forwarded-for" => "xff",
+				"x-forwarded-host" => "xfh", 
+				"x-forwarded-proto" => "xfp" }
 
 			secretKey = "secretKey"
 			queueitToken = QueueITTokenGenerator::generateDebugToken("eventId", secretKey)
 		
+			expectedServerTime = Time.now.utc.iso8601
 			KnownUser.cancelRequestByLocalConfig("url", queueitToken, cancelConfig, "customerId", secretKey, requestMock)
 
-			expectedCookieValue = "TargetUrl=url|QueueitToken=" + queueitToken + "|OriginalUrl=original_url|CancelConfig=EventId:eventId&Version:1&QueueDomain:queueDomain&CookieDomain:cookieDomain"
-        
+			expectedCookieValue = "TargetUrl=url|QueueitToken=" + queueitToken + 
+				"|OriginalUrl=http://localhost/original_url" + 
+				"|CancelConfig=EventId:eventId&Version:1&QueueDomain:queueDomain&CookieDomain:cookieDomain" + 
+				"|ServerUtcTime=" + expectedServerTime + 
+				"|RequestIP=userIP" + 
+				"|RequestHttpHeader_Via=v" + 
+				"|RequestHttpHeader_Forwarded=f" + 
+				"|RequestHttpHeader_XForwardedFor=xff" + 
+				"|RequestHttpHeader_XForwardedHost=xfh" + 
+				"|RequestHttpHeader_XForwardedProto=xfp" 
+
 			assert( requestMock.cookie_jar.length == 1 );
 			assert( requestMock.cookie_jar.key?(KnownUser::QUEUEIT_DEBUG_KEY.to_sym) )
-			assert( expectedCookieValue.eql?(requestMock.cookie_jar[KnownUser::QUEUEIT_DEBUG_KEY.to_sym]["value".to_sym]) )
+			
+			actualCookieValue = requestMock.cookie_jar[KnownUser::QUEUEIT_DEBUG_KEY.to_sym]["value".to_sym]
+			assert( expectedCookieValue.eql?(actualCookieValue) )
 		end
 
 		def test_cancelRequestByLocalConfig_nil_QueueDomain
@@ -410,19 +437,37 @@ module QueueIt
 			queueConfig.version = 12
 
 			requestMock = HttpRequestMock.new
-			requestMock.original_url = "original_url"
+			requestMock.setRealOriginalUrl("http", "localhost", "/original_url")
 			requestMock.cookie_jar = {}
+			requestMock.remote_ip = "userIP"
+			requestMock.headers = {
+				"via" => "v", 
+				"forwarded" => "f", 
+				"x-forwarded-for" => "xff",
+				"x-forwarded-host" => "xfh", 
+				"x-forwarded-proto" => "xfp" }
 
 			secretKey = "secretKey"
 			queueitToken = QueueITTokenGenerator::generateDebugToken("eventId", secretKey)
 		
+			expectedServerTime = Time.now.utc.iso8601
 			KnownUser.resolveQueueRequestByLocalConfig("url", queueitToken, queueConfig, "customerId", secretKey, requestMock)
 		
-			expectedCookieValue = "TargetUrl=url|QueueitToken=" + queueitToken + "|OriginalUrl=original_url|QueueConfig=EventId:eventId&Version:12&QueueDomain:queueDomain&CookieDomain:cookieDomain&ExtendCookieValidity:true&CookieValidityMinute:10&LayoutName:layoutName&Culture:culture"
-        
+			expectedCookieValue = "TargetUrl=url|QueueitToken=" + queueitToken + 
+				"|OriginalUrl=http://localhost/original_url" + 
+				"|QueueConfig=EventId:eventId&Version:12&QueueDomain:queueDomain&CookieDomain:cookieDomain&ExtendCookieValidity:true&CookieValidityMinute:10&LayoutName:layoutName&Culture:culture" +
+				"|ServerUtcTime=" + expectedServerTime + 
+				"|RequestIP=userIP" + 
+				"|RequestHttpHeader_Via=v" + 
+				"|RequestHttpHeader_Forwarded=f" + 
+				"|RequestHttpHeader_XForwardedFor=xff" + 
+				"|RequestHttpHeader_XForwardedHost=xfh" + 
+				"|RequestHttpHeader_XForwardedProto=xfp"
+
 			assert( requestMock.cookie_jar.length == 1 );
 			assert( requestMock.cookie_jar.key?(KnownUser::QUEUEIT_DEBUG_KEY.to_sym) )
-			assert( expectedCookieValue.eql?(requestMock.cookie_jar[KnownUser::QUEUEIT_DEBUG_KEY.to_sym]["value".to_sym]) )
+			actualCookieValue = requestMock.cookie_jar[KnownUser::QUEUEIT_DEBUG_KEY.to_sym]["value".to_sym]
+			assert( expectedCookieValue.eql?(actualCookieValue) )
 		end
 
 		def test_resolveQueueRequestByLocalConfig
@@ -612,20 +657,39 @@ module QueueIt
 		
 			requestMock = HttpRequestMock.new
 			requestMock.user_agent = "googlebot"
-			requestMock.original_url = "original_url"
+			requestMock.setRealOriginalUrl("http", "localhost", "/original_url")
 			requestMock.cookie_jar = {}
+			requestMock.remote_ip = "userIP"
+			requestMock.headers = {
+				"via" => "v", 
+				"forwarded" => "f", 
+				"x-forwarded-for" => "xff",
+				"x-forwarded-host" => "xfh", 
+				"x-forwarded-proto" => "xfp" }
 			integrationConfigJson = JSON.generate(integrationConfig)
 		
 			secretKey = "secretKey"
 			queueitToken = QueueITTokenGenerator::generateDebugToken("eventId", secretKey)
 		
+			expectedServerTime = Time.now.utc.iso8601
 			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", queueitToken, integrationConfigJson, "customerId", secretKey, requestMock)
 
-			expectedCookieValue = "ConfigVersion=3|PureUrl=http://test.com?event1=true|QueueitToken=" + queueitToken + "|OriginalUrl=original_url|MatchedConfig=event1action|TargetUrl=http://test.com?event1=true|QueueConfig=EventId:event1&Version:3&QueueDomain:knownusertest.queue-it.net&CookieDomain:.test.com&ExtendCookieValidity:true&CookieValidityMinute:20&LayoutName:Christmas Layout by Queue-it&Culture:da-DK"
-        
+			expectedCookieValue = "ConfigVersion=3|PureUrl=http://test.com?event1=true|QueueitToken=" + queueitToken + 
+				"|OriginalUrl=http://localhost/original_url" +
+				"|ServerUtcTime=" + expectedServerTime + 
+				"|RequestIP=userIP" + 
+				"|RequestHttpHeader_Via=v" + 
+				"|RequestHttpHeader_Forwarded=f" + 
+				"|RequestHttpHeader_XForwardedFor=xff" + 
+				"|RequestHttpHeader_XForwardedHost=xfh" + 
+				"|RequestHttpHeader_XForwardedProto=xfp" +
+				"|MatchedConfig=event1action|TargetUrl=http://test.com?event1=true|QueueConfig=EventId:event1&Version:3&QueueDomain:knownusertest.queue-it.net&CookieDomain:.test.com&ExtendCookieValidity:true&CookieValidityMinute:20&LayoutName:Christmas Layout by Queue-it&Culture:da-DK"
+
 			assert( requestMock.cookie_jar.length == 1 );
 			assert( requestMock.cookie_jar.key?(KnownUser::QUEUEIT_DEBUG_KEY.to_sym) )
-			assert( expectedCookieValue.eql?(requestMock.cookie_jar[KnownUser::QUEUEIT_DEBUG_KEY.to_sym]["value".to_sym]) )
+
+			actualCookieValue = requestMock.cookie_jar[KnownUser::QUEUEIT_DEBUG_KEY.to_sym]["value".to_sym]
+			assert( expectedCookieValue.eql?(actualCookieValue) )
 		end
 
 		def test_validateRequestByIntegrationConfig_NotMatch
@@ -656,8 +720,15 @@ module QueueIt
 			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			requestMock = HttpRequestMock.new
-			requestMock.original_url = "original_url"
+			requestMock.setRealOriginalUrl("http", "localhost", "/original_url")
 			requestMock.cookie_jar = {}
+			requestMock.remote_ip = "userIP"
+			requestMock.headers = {
+				"via" => "v", 
+				"forwarded" => "f", 
+				"x-forwarded-for" => "xff",
+				"x-forwarded-host" => "xfh", 
+				"x-forwarded-proto" => "xfp" }
 		
 			integrationConfig = 
 			{
@@ -675,13 +746,24 @@ module QueueIt
 			queueitToken = QueueITTokenGenerator::generateDebugToken("eventId", secretKey)		
 
 			integrationConfigJson = JSON.generate(integrationConfig)
+			expectedServerTime = Time.now.utc.iso8601
 			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", queueitToken, integrationConfigJson, "customerId", secretKey, requestMock)
 
-			expectedCookieValue = "ConfigVersion=3|PureUrl=http://test.com?event1=true|QueueitToken=" + queueitToken + "|OriginalUrl=original_url|MatchedConfig=NULL"
-        
+			expectedCookieValue = "ConfigVersion=3|PureUrl=http://test.com?event1=true|QueueitToken=" + queueitToken + 
+				"|OriginalUrl=http://localhost/original_url" + 
+				"|ServerUtcTime=" + expectedServerTime + 
+				"|RequestIP=userIP" + 
+				"|RequestHttpHeader_Via=v" + 
+				"|RequestHttpHeader_Forwarded=f" + 
+				"|RequestHttpHeader_XForwardedFor=xff" + 
+				"|RequestHttpHeader_XForwardedHost=xfh" + 
+				"|RequestHttpHeader_XForwardedProto=xfp" +
+				"|MatchedConfig=NULL"
+
 			assert( requestMock.cookie_jar.length == 1 );
 			assert( requestMock.cookie_jar.key?(KnownUser::QUEUEIT_DEBUG_KEY.to_sym) )
-			assert( expectedCookieValue.eql?(requestMock.cookie_jar[KnownUser::QUEUEIT_DEBUG_KEY.to_sym]["value".to_sym]) )        
+			actualCookieValue = requestMock.cookie_jar[KnownUser::QUEUEIT_DEBUG_KEY.to_sym]["value".to_sym]
+			assert( expectedCookieValue.eql?(actualCookieValue) )
 		end
 
 		def test_validateRequestByIntegrationConfig_ForcedTargetUrl

@@ -25,6 +25,17 @@ module QueueIt
 		end
 		private_class_method :convertToInt
 	
+		def self.logMoreRequestDetails(debugEntries, request)
+			debugEntries["ServerUtcTime"] = Time.now.utc.iso8601
+			debugEntries["RequestIP"] = request.remote_ip
+			debugEntries["RequestHttpHeader_Via"] = request.headers["via"]
+			debugEntries["RequestHttpHeader_Forwarded"] = request.headers["forwarded"]
+			debugEntries["RequestHttpHeader_XForwardedFor"] = request.headers["x-forwarded-for"]
+			debugEntries["RequestHttpHeader_XForwardedHost"] = request.headers["x-forwarded-host"]
+			debugEntries["RequestHttpHeader_XForwardedProto"] = request.headers["x-forwarded-proto"]
+		end
+		private_class_method :logMoreRequestDetails
+
 		def self.getIsDebug(queueitToken, secretKey)
 			qParams = QueueUrlParams.extractQueueParams(queueitToken)
 			if(qParams == nil)
@@ -65,12 +76,13 @@ module QueueIt
 			if(isDebug)
 				debugEntries["TargetUrl"] = targetUrl
 				debugEntries["QueueitToken"] = queueitToken
-				debugEntries["OriginalUrl"] = request.original_url            
+				debugEntries["OriginalUrl"] = getRealOriginalUrl(request)
 				if(queueConfig == nil)
 					debugEntries["QueueConfig"] = "NULL"
 				else
 					debugEntries["QueueConfig"] = queueConfig.toString()
 				end
+				logMoreRequestDetails(debugEntries, request)
 			end
 		
 			if(Utils.isNilOrEmpty(customerId))
@@ -112,12 +124,13 @@ module QueueIt
 			if(isDebug)
 				debugEntries["TargetUrl"] = targetUrl
 				debugEntries["QueueitToken"] = queueitToken
-				debugEntries["OriginalUrl"] = request.original_url
+				debugEntries["OriginalUrl"] = getRealOriginalUrl(request)
 				if(cancelConfig == nil)
 					debugEntries["CancelConfig"] = "NULL"
 				else
 					debugEntries["CancelConfig"] = cancelConfig.toString()
 				end
+				logMoreRequestDetails(debugEntries, request)
 			end
 		
 			if(Utils.isNilOrEmpty(targetUrl))
@@ -194,7 +207,8 @@ module QueueIt
 					debugEntries["ConfigVersion"] = customerIntegration["Version"]
 					debugEntries["PureUrl"] = currentUrlWithoutQueueITToken
 					debugEntries["QueueitToken"] = queueitToken
-					debugEntries["OriginalUrl"] = request.original_url
+					debugEntries["OriginalUrl"] = getRealOriginalUrl(request)
+					logMoreRequestDetails(debugEntries, request)
 				end
 			
 				integrationEvaluator = IntegrationEvaluator.new
@@ -257,6 +271,12 @@ module QueueIt
 			ensure
 				setDebugCookie(debugEntries, request.cookie_jar)
 			end
+		end
+
+		def self.getRealOriginalUrl(request)
+			# RoR could modify request.original_url if request contains x-forwarded-host/proto http headers.  
+			# Therefore we need this method to be able to access the 'real' original url.
+			return request.env["rack.url_scheme"] + "://" + request.env["HTTP_HOST"] + request.original_fullpath
 		end
 	end
 
