@@ -3,7 +3,7 @@ require 'cgi'
 
 module QueueIt
 	class UserInQueueService
-		SDK_VERSION = "3.3.2"
+		SDK_VERSION = "3.4.0"
     
 		def initialize(userInQueueStateRepository)
 			@userInQueueStateRepository = userInQueueStateRepository
@@ -70,7 +70,7 @@ module QueueIt
 				!(queueParams.cookieValidityMinute.nil?) ? queueParams.cookieValidityMinute : config.cookieValidityMinute,
 				!Utils::isNilOrEmpty(config.cookieDomain) ? config.cookieDomain : '',
 				secretKey)
-			return RequestValidationResult.new(ActionTypes::QUEUE, config.eventId, queueParams.queueId, nil)        		
+			return RequestValidationResult.new(ActionTypes::QUEUE, config.eventId, queueParams.queueId, nil)
 		end
 
 		def getVaidationErrorResult(customerId, targetUrl, config, qParams, errorCode) 
@@ -111,6 +111,10 @@ module QueueIt
 
 		def extendQueueCookie(eventId, cookieValidityMinute, cookieDomain, secretKey) 
 			@userInQueueStateRepository.extendQueueCookie(eventId, cookieValidityMinute, cookieDomain, secretKey)
+		end
+
+		def getIgnoreActionResult()
+			return RequestValidationResult.new(ActionTypes::IGNORE, nil, nil, nil)
 		end
 	end
 end

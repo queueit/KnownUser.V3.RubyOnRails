@@ -92,5 +92,6 @@ module QueueIt
 	class ActionTypes
 		CANCEL = "Cancel"
 		QUEUE = "Queue"
+		IGNORE = "Ignore"
 	end
 end

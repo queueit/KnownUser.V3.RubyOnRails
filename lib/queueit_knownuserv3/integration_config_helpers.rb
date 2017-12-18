@@ -75,14 +75,14 @@ module QueueIt
 
 	class UrlValidatorHelper
 		def self.evaluate(triggerPart, url)
-			if (!triggerPart.key?("Operator") ||
+			if (triggerPart.nil? || 
+				!triggerPart.key?("Operator") ||
 				!triggerPart.key?("IsNegative") ||
 				!triggerPart.key?("IsIgnoreCase") ||
-				!triggerPart.key?("ValueToCompare") ||
 				!triggerPart.key?("UrlPart"))
-				return false;
+				return false
 			end
-
+			
 			urlPart = UrlValidatorHelper.getUrlPart(triggerPart["UrlPart"], url)
 
 			return ComparisonOperatorHelper.evaluate(
@@ -90,7 +90,8 @@ module QueueIt
 				triggerPart["IsNegative"], 
 				triggerPart["IsIgnoreCase"], 
 				urlPart, 
-				triggerPart["ValueToCompare"])
+				triggerPart["ValueToCompare"],
+				triggerPart["ValuesToCompare"])
 		end
 
 		def self.getUrlPart(urlPart, url)
@@ -115,12 +116,12 @@ module QueueIt
 	class CookieValidatorHelper
 		def self.evaluate(triggerPart, cookieJar)
 			begin
-				if (!triggerPart.key?("Operator") ||
+				if (triggerPart.nil? ||
+					!triggerPart.key?("Operator") ||
 					!triggerPart.key?("IsNegative") ||
 					!triggerPart.key?("IsIgnoreCase") ||
-					!triggerPart.key?("ValueToCompare") ||
 					!triggerPart.key?("CookieName"))
-					return false;
+					return false
 				end
 
 				if(cookieJar.nil?)
@@ -137,7 +138,8 @@ module QueueIt
 					triggerPart["IsNegative"], 
 					triggerPart["IsIgnoreCase"], 
 					cookieValue, 
-					triggerPart["ValueToCompare"])
+					triggerPart["ValueToCompare"],
+					triggerPart["ValuesToCompare"])
 			rescue
 				return false
 			end
@@ -147,33 +149,43 @@ module QueueIt
 	class UserAgentValidatorHelper
 		def self.evaluate(triggerPart, userAgent)
 			begin
-				if (!triggerPart.key?("Operator") ||
+				if (triggerPart.nil? ||
+					!triggerPart.key?("Operator") ||
 					!triggerPart.key?("IsNegative") ||
-					!triggerPart.key?("IsIgnoreCase") ||
-					!triggerPart.key?("ValueToCompare"))
-					return false;
+					!triggerPart.key?("IsIgnoreCase"))
+					return false
 				end
-
+			
 				return ComparisonOperatorHelper.evaluate(
 					triggerPart["Operator"], 
 					triggerPart["IsNegative"], 
 					triggerPart["IsIgnoreCase"], 
 					userAgent, 
-					triggerPart["ValueToCompare"])
+					triggerPart["ValueToCompare"],
+					triggerPart["ValuesToCompare"])
 			end
 		end
 	end
 
 	class HttpHeaderValidatorHelper
 		def self.evaluate(triggerPart, headers)
-			begin				
+			begin
+				if (triggerPart.nil? || 
+					!triggerPart.key?("Operator") ||
+					!triggerPart.key?("IsNegative") ||
+					!triggerPart.key?("IsIgnoreCase")
+					!triggerPart.key?("HttpHeaderName"))
+					return false
+				end
+
 				headerValue = headers[triggerPart['HttpHeaderName']]
 				return ComparisonOperatorHelper.evaluate(
 					triggerPart["Operator"], 
 					triggerPart["IsNegative"], 
 					triggerPart["IsIgnoreCase"], 
 					headerValue, 
-					triggerPart["ValueToCompare"])				
+					triggerPart["ValueToCompare"],
+					triggerPart["ValuesToCompare"])
 			rescue
 				return false
 			end
@@ -181,35 +193,44 @@ module QueueIt
 	end
 
 	class ComparisonOperatorHelper
-		def self.evaluate(opt, isNegative, ignoreCase, left, right)
-			if(left.nil?)
-				left = ''
+		def self.evaluate(opt, isNegative, ignoreCase, value, valueToCompare, valuesToCompare)
+			if (value.nil?)
+				value = ''
 			end
-			if(right.nil?) 
-				right = ''
+			
+			if (valueToCompare.nil?) 
+				valueToCompare = ''
+			end
+			
+			if (valuesToCompare.nil?)
+				valuesToCompare = []
 			end
 
 			case opt		
 				when "Equals"
-					return ComparisonOperatorHelper.equals(left, right, isNegative, ignoreCase)
+					return ComparisonOperatorHelper.equals(value, valueToCompare, isNegative, ignoreCase)
 				when "Contains" 
-					return ComparisonOperatorHelper.contains(left, right, isNegative, ignoreCase)
+					return ComparisonOperatorHelper.contains(value, valueToCompare, isNegative, ignoreCase)
 				when "StartsWith"
-					return ComparisonOperatorHelper.startsWith(left, right, isNegative, ignoreCase)
+					return ComparisonOperatorHelper.startsWith(value, valueToCompare, isNegative, ignoreCase)
 				when "EndsWith"
-					return ComparisonOperatorHelper.endsWith(left, right, isNegative, ignoreCase)
+					return ComparisonOperatorHelper.endsWith(value, valueToCompare, isNegative, ignoreCase)
 				when "MatchesWith"
-					return ComparisonOperatorHelper.matchesWith(left, right, isNegative, ignoreCase)
+					return ComparisonOperatorHelper.matchesWith(value, valueToCompare, isNegative, ignoreCase)
+				when "EqualsAny"
+					return ComparisonOperatorHelper.equalsAny(value, valuesToCompare, isNegative, ignoreCase)
+				when "ContainsAny"
+					return ComparisonOperatorHelper.containsAny(value, valuesToCompare, isNegative, ignoreCase)
 				else
 					return false
 			end
 		end
 
-		def self.equals(left, right, isNegative, ignoreCase)
+		def self.equals(value, valueToCompare, isNegative, ignoreCase)
 			if(ignoreCase)
-				evaluation = left.upcase.eql? right.upcase
+				evaluation = value.upcase.eql? valueToCompare.upcase
 			else
-				evaluation = left.eql? right
+				evaluation = value.eql? valueToCompare
 			end
 
 			if(isNegative)
@@ -219,17 +240,17 @@ module QueueIt
 			end
 		end
 
-		def self.contains(left, right, isNegative, ignoreCase)
-			if(right.eql? "*")
+		def self.contains(value, valueToCompare, isNegative, ignoreCase)
+			if(valueToCompare.eql? "*")
 				return true
 			end
 
 			if(ignoreCase)
-				left = left.upcase
-				right = right.upcase
+				value = value.upcase
+				valueToCompare = valueToCompare.upcase
 			end
 
-			evaluation = left.include? right
+			evaluation = value.include? valueToCompare
 			if(isNegative)
 				return !evaluation
 			else
@@ -237,25 +258,11 @@ module QueueIt
 			end
 		end
 
-		def self.startsWith(left, right, isNegative, ignoreCase)
+		def self.startsWith(value, valueToCompare, isNegative, ignoreCase)
 			if(ignoreCase)
-				evaluation = left.upcase.start_with? right.upcase
+				evaluation = value.upcase.start_with? valueToCompare.upcase
 			else
-				evaluation = left.start_with? right
-			end
-
-			if(isNegative)
-				return !evaluation
-			else
-				return evaluation
-			end
-		end
-
-		def self.endsWith(left, right, isNegative, ignoreCase)
-			if(ignoreCase)
-				evaluation = left.upcase.end_with? right.upcase
-			else
-				evaluation = left.end_with? right
+				evaluation = value.start_with? valueToCompare
 			end
 
 			if(isNegative)
@@ -265,19 +272,51 @@ module QueueIt
 			end
 		end
 
-		def self.matchesWith(left, right, isNegative, ignoreCase)
+		def self.endsWith(value, valueToCompare, isNegative, ignoreCase)
 			if(ignoreCase)
-				pattern = Regexp.new(right, Regexp::IGNORECASE) 
+				evaluation = value.upcase.end_with? valueToCompare.upcase
 			else
-				pattern = Regexp.new(right)
+				evaluation = value.end_with? valueToCompare
+			end
+
+			if(isNegative)
+				return !evaluation
+			else
+				return evaluation
+			end
+		end
+
+		def self.matchesWith(value, valueToCompare, isNegative, ignoreCase)
+			if(ignoreCase)
+				pattern = Regexp.new(valueToCompare, Regexp::IGNORECASE) 
+			else
+				pattern = Regexp.new(valueToCompare)
 			end
 		
-			evaluation = pattern.match(left) != nil
+			evaluation = pattern.match(value) != nil
 			if(isNegative)
 				return !evaluation
 			else
 				return evaluation
 			end
+		end
+
+		def self.equalsAny(value, valuesToCompare, isNegative, ignoreCase)
+			valuesToCompare.each do |valueToCompare|
+				if (ComparisonOperatorHelper.equals(value, valueToCompare, false, ignoreCase))
+					return !isNegative
+				end
+			end
+			return isNegative
+		end
+
+		def self.containsAny(value, valuesToCompare, isNegative, ignoreCase)
+			valuesToCompare.each do |valueToCompare|
+				if (ComparisonOperatorHelper.contains(value, valueToCompare, false, ignoreCase))
+					return !isNegative
+				end
+			end
+			return isNegative
 		end
 	end
 end

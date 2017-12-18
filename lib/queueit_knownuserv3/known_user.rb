@@ -226,42 +226,57 @@ module QueueIt
 					return RequestValidationResult.new(nil, nil, nil, nil)
 				end
 			
+				# unspecified or 'Queue' specified
 				if(!matchedConfig.key?("ActionType") || Utils.isNilOrEmpty(matchedConfig["ActionType"]) || matchedConfig["ActionType"].eql?(ActionTypes::QUEUE))
-					queueConfig = QueueEventConfig.new
-					queueConfig.eventId = matchedConfig["EventId"]
-					queueConfig.queueDomain = matchedConfig["QueueDomain"]
-					queueConfig.layoutName = matchedConfig["LayoutName"]
-					queueConfig.culture = matchedConfig["Culture"]
-					queueConfig.cookieDomain = matchedConfig["CookieDomain"]
-					queueConfig.extendCookieValidity = matchedConfig["ExtendCookieValidity"]
-					queueConfig.cookieValidityMinute = matchedConfig["CookieValidityMinute"]
-					queueConfig.version = customerIntegration["Version"]
-			
-					case matchedConfig["RedirectLogic"]
-						when "ForcedTargetUrl"
-							targetUrl = matchedConfig["ForcedTargetUrl"]					
-						when "EventTargetUrl"
-							targetUrl = ''
-						else
-							targetUrl = currentUrlWithoutQueueITToken
-					end
-
-					return _resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, request, debugEntries)			
-			
-				else # cancel action			
-					cancelConfig = CancelEventConfig.new;
-					cancelConfig.eventId = matchedConfig["EventId"]
-					cancelConfig.queueDomain = matchedConfig["QueueDomain"]
-					cancelConfig.cookieDomain = matchedConfig["CookieDomain"]
-					cancelConfig.version = customerIntegration["Version"]
-            
-					return _cancelRequestByLocalConfig(currentUrlWithoutQueueITToken, queueitToken, cancelConfig, customerId, secretKey, request, debugEntries);
+					handleQueueAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, customerId, secretKey, matchedConfig, request, debugEntries)
+				
+				elsif(matchedConfig["ActionType"].eql?(ActionTypes::CANCEL))
+					handleCancelAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, customerId, secretKey, matchedConfig, request, debugEntries)
+					
+				# for all unknown types default to 'Ignore'
+				else
+					userInQueueService = getUserInQueueService(request.cookie_jar)
+					userInQueueService.getIgnoreActionResult()
 				end
+
 			rescue StandardError => stdErr
 				raise KnownUserError, "integrationConfiguration text was not valid: " + stdErr.message
 			ensure
 				setDebugCookie(debugEntries, request.cookie_jar)
 			end
+		end
+
+		def self.handleQueueAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, customerId, secretKey, matchedConfig, request, debugEntries)
+			queueConfig = QueueEventConfig.new
+			queueConfig.eventId = matchedConfig["EventId"]
+			queueConfig.queueDomain = matchedConfig["QueueDomain"]
+			queueConfig.layoutName = matchedConfig["LayoutName"]
+			queueConfig.culture = matchedConfig["Culture"]
+			queueConfig.cookieDomain = matchedConfig["CookieDomain"]
+			queueConfig.extendCookieValidity = matchedConfig["ExtendCookieValidity"]
+			queueConfig.cookieValidityMinute = matchedConfig["CookieValidityMinute"]
+			queueConfig.version = customerIntegration["Version"]
+			
+			case matchedConfig["RedirectLogic"]
+				when "ForcedTargetUrl"
+					targetUrl = matchedConfig["ForcedTargetUrl"]					
+				when "EventTargetUrl"
+					targetUrl = ''
+				else
+					targetUrl = currentUrlWithoutQueueITToken
+			end
+
+			return _resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, request, debugEntries)		
+		end
+
+		def self.handleCancelAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, customerId, secretKey, matchedConfig, request, debugEntries)
+			cancelConfig = CancelEventConfig.new;
+			cancelConfig.eventId = matchedConfig["EventId"]
+			cancelConfig.queueDomain = matchedConfig["QueueDomain"]
+			cancelConfig.cookieDomain = matchedConfig["CookieDomain"]
+			cancelConfig.version = customerIntegration["Version"]
+            
+			return _cancelRequestByLocalConfig(currentUrlWithoutQueueITToken, queueitToken, cancelConfig, customerId, secretKey, request, debugEntries);
 		end
 
 		def self.cancelRequestByLocalConfig(targetUrl, queueitToken, cancelConfig, customerId, secretKey, request)

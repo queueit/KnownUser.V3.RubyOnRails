@@ -371,6 +371,9 @@ module QueueIt
 
 	class TestUrlValidatorHelper < Test::Unit::TestCase
 		def test_evaluate 
+			assert( !UrlValidatorHelper.evaluate(nil, "notimportant") )
+			assert( !UrlValidatorHelper.evaluate({}, "notimportant") )
+			
 			triggerPart = 
 			{
 				"UrlPart" => "PageUrl",
@@ -415,6 +418,9 @@ module QueueIt
 
 	class TestUserAgentValidatorHelper < Test::Unit::TestCase
 		def test_evaluate 
+			assert( !UserAgentValidatorHelper.evaluate(nil, "notimportant") )
+			assert( !UserAgentValidatorHelper.evaluate({}, "notimportant") )
+			
 			triggerPart = 
 			{
 				"Operator" => "Contains",
@@ -457,6 +463,9 @@ module QueueIt
 
 	class TestCookieValidatorHelper < Test::Unit::TestCase
 		def test_evaluate
+			assert( !CookieValidatorHelper.evaluate(nil, {:c1 => "notimportant" }) )
+			assert( !CookieValidatorHelper.evaluate({}, {:c1 => "notimportant" }) )
+			
 			triggerPart = 
 			{
 				"CookieName" => "c1",
@@ -473,7 +482,7 @@ module QueueIt
 				"Operator" => "Contains",
 				"ValueToCompare" => "1"
 			}
-			assert( !CookieValidatorHelper.evaluate(triggerPart, {:c2 => "ddd", :c1 => "1"}) )
+			assert( !CookieValidatorHelper.evaluate(triggerPart, {:c2 => "ddd", :c1 => "3"}) )
         
 			triggerPart = 
 			{
@@ -499,6 +508,9 @@ module QueueIt
 
 	class TestHttpHeaderValidatorHelper < Test::Unit::TestCase
 		def test_evaluate
+			assert( !HttpHeaderValidatorHelper.evaluate(nil, {'a-header' => "notimportant" }) )
+			assert( !HttpHeaderValidatorHelper.evaluate({}, {'a-header' => "notimportant" }) )
+			
 			triggerPart = 
 			{
 				"HttpHeaderName" => "a-header",
@@ -530,52 +542,71 @@ module QueueIt
 
 	class TestComparisonOperatorHelper < Test::Unit::TestCase
 		def test_evaluate_equals_operator
-			assert( ComparisonOperatorHelper.evaluate("Equals", false, false, nil, nil) )
-			assert( ComparisonOperatorHelper.evaluate("Equals", false, false, "test1", "test1") )
-			assert( !ComparisonOperatorHelper.evaluate("Equals", false, false, "test1", "Test1") )
-			assert( ComparisonOperatorHelper.evaluate("Equals", false, true, "test1", "Test1") )
-			assert( ComparisonOperatorHelper.evaluate("Equals", true, false, "test1", "Test1") )
-			assert( !ComparisonOperatorHelper.evaluate("Equals", true, false, "test1", "test1") )
-			assert( !ComparisonOperatorHelper.evaluate("Equals", true, true, "test1", "Test1") )
+			assert( ComparisonOperatorHelper.evaluate("Equals", false, false, nil, nil, nil) )
+			assert( ComparisonOperatorHelper.evaluate("Equals", false, false, "test1", "test1", nil) )
+			assert( !ComparisonOperatorHelper.evaluate("Equals", false, false, "test1", "Test1", nil) )
+			assert( ComparisonOperatorHelper.evaluate("Equals", false, true, "test1", "Test1", nil) )
+			assert( ComparisonOperatorHelper.evaluate("Equals", true, false, "test1", "Test1", nil) )
+			assert( !ComparisonOperatorHelper.evaluate("Equals", true, false, "test1", "test1", nil) )
+			assert( !ComparisonOperatorHelper.evaluate("Equals", true, true, "test1", "Test1", nil) )
 		end
 
 		def test_evaluate_contains_operator
-			assert( ComparisonOperatorHelper.evaluate("Contains", false, false, nil, nil) )
-			assert( ComparisonOperatorHelper.evaluate("Contains", false, false, "test_test1_test", "test1") )
-			assert( !ComparisonOperatorHelper.evaluate("Contains", false, false, "test_test1_test", "Test1") )
-			assert( ComparisonOperatorHelper.evaluate("Contains", false, true, "test_test1_test", "Test1") )
-			assert( ComparisonOperatorHelper.evaluate("Contains", true, false, "test_test1_test", "Test1") )
-			assert( !ComparisonOperatorHelper.evaluate("Contains", true, true, "test_test1", "Test1") )
-			assert( !ComparisonOperatorHelper.evaluate("Contains", true, false, "test_test1", "test1") )
-			assert( ComparisonOperatorHelper.evaluate("Contains", false, false, "test_dsdsdsdtest1", "*") )
+			assert( ComparisonOperatorHelper.evaluate("Contains", false, false, nil, nil, nil) )
+			assert( ComparisonOperatorHelper.evaluate("Contains", false, false, "test_test1_test", "test1", nil) )
+			assert( !ComparisonOperatorHelper.evaluate("Contains", false, false, "test_test1_test", "Test1", nil) )
+			assert( ComparisonOperatorHelper.evaluate("Contains", false, true, "test_test1_test", "Test1", nil) )
+			assert( ComparisonOperatorHelper.evaluate("Contains", true, false, "test_test1_test", "Test1", nil) )
+			assert( !ComparisonOperatorHelper.evaluate("Contains", true, true, "test_test1", "Test1", nil) )
+			assert( !ComparisonOperatorHelper.evaluate("Contains", true, false, "test_test1", "test1", nil) )
+			assert( ComparisonOperatorHelper.evaluate("Contains", false, false, "test_dsdsdsdtest1", "*", nil) )
 		end
 
 		def test_evaluate_startsWith_operator
-			assert( ComparisonOperatorHelper.evaluate("StartsWith", false, false, nil, nil) )
-			assert( ComparisonOperatorHelper.evaluate("StartsWith", false, false, "test1_test1_test", "test1") )
-			assert( !ComparisonOperatorHelper.evaluate("StartsWith", false, false, "test1_test1_test", "Test1") )
-			assert( ComparisonOperatorHelper.evaluate("StartsWith", false, true, "test1_test1_test", "Test1") )
-			assert( !ComparisonOperatorHelper.evaluate("StartsWith", true, true, "test1_test1_test", "Test1") )    
+			assert( ComparisonOperatorHelper.evaluate("StartsWith", false, false, nil, nil, nil) )
+			assert( ComparisonOperatorHelper.evaluate("StartsWith", false, false, "test1_test1_test", "test1", nil) )
+			assert( !ComparisonOperatorHelper.evaluate("StartsWith", false, false, "test1_test1_test", "Test1", nil) )
+			assert( ComparisonOperatorHelper.evaluate("StartsWith", false, true, "test1_test1_test", "Test1", nil) )
+			assert( !ComparisonOperatorHelper.evaluate("StartsWith", true, true, "test1_test1_test", "Test1", nil) )    
 		end
 
 		def test_evaluate_endsWith_operator
-			assert( ComparisonOperatorHelper.evaluate("EndsWith", false, false, nil, nil) )
-			assert( ComparisonOperatorHelper.evaluate("EndsWith", false, false, "test1_test1_testshop", "shop") )
-			assert( !ComparisonOperatorHelper.evaluate("EndsWith", false, false, "test1_test1_testshop2", "shop") )
-			assert( ComparisonOperatorHelper.evaluate("EndsWith", false, true, "test1_test1_testshop", "Shop") )
-			assert( !ComparisonOperatorHelper.evaluate("EndsWith", true, true, "test1_test1_testshop", "Shop") )
+			assert( ComparisonOperatorHelper.evaluate("EndsWith", false, false, nil, nil, nil) )
+			assert( ComparisonOperatorHelper.evaluate("EndsWith", false, false, "test1_test1_testshop", "shop", nil) )
+			assert( !ComparisonOperatorHelper.evaluate("EndsWith", false, false, "test1_test1_testshop2", "shop", nil) )
+			assert( ComparisonOperatorHelper.evaluate("EndsWith", false, true, "test1_test1_testshop", "Shop", nil) )
+			assert( !ComparisonOperatorHelper.evaluate("EndsWith", true, true, "test1_test1_testshop", "Shop", nil) )
 		end
 
 		def test_evaluate_matchesWith_operator
-			assert( ComparisonOperatorHelper.evaluate("MatchesWith", false, false, nil, nil) )
-			assert( ComparisonOperatorHelper.evaluate("MatchesWith", false, false, "test1_test1_testshop", ".*shop.*") )
-			assert( !ComparisonOperatorHelper.evaluate("MatchesWith", false, false, "test1_test1_testshop2", ".*Shop.*") )
-			assert( ComparisonOperatorHelper.evaluate("MatchesWith", false, true, "test1_test1_testshop", ".*Shop.*") )
-			assert( !ComparisonOperatorHelper.evaluate("MatchesWith", true, true, "test1_test1_testshop", ".*Shop.*") )
+			assert( ComparisonOperatorHelper.evaluate("MatchesWith", false, false, nil, nil, nil) )
+			assert( ComparisonOperatorHelper.evaluate("MatchesWith", false, false, "test1_test1_testshop", ".*shop.*", nil) )
+			assert( !ComparisonOperatorHelper.evaluate("MatchesWith", false, false, "test1_test1_testshop2", ".*Shop.*", nil) )
+			assert( ComparisonOperatorHelper.evaluate("MatchesWith", false, true, "test1_test1_testshop", ".*Shop.*", nil) )
+			assert( !ComparisonOperatorHelper.evaluate("MatchesWith", true, true, "test1_test1_testshop", ".*Shop.*", nil) )
+		end
+
+		def test_evaluate_equalsAny_operator
+			assert( ComparisonOperatorHelper.evaluate("EqualsAny", false, false, "test1", nil, ["test1"]) )
+			assert( !ComparisonOperatorHelper.evaluate("EqualsAny", false, false, "test1", nil, ["Test1"]) )
+			assert( ComparisonOperatorHelper.evaluate("EqualsAny", false, true, "test1", nil, ["Test1"]) )
+			assert( ComparisonOperatorHelper.evaluate("EqualsAny", true, false, "test1", nil, ["Test1"]) )
+			assert( !ComparisonOperatorHelper.evaluate("EqualsAny", true, false, "test1", nil, ["test1"]) )
+			assert( !ComparisonOperatorHelper.evaluate("EqualsAny", true, true, "test1", nil, ["Test1"]) )
+		end
+
+		def test_evaluate_containsAny_operator
+			assert( ComparisonOperatorHelper.evaluate("ContainsAny", false, false, "test_test1_test", nil, ["test1"]) )
+			assert( !ComparisonOperatorHelper.evaluate("ContainsAny", false, false, "test_test1_test", nil, ["Test1"]) )
+			assert( ComparisonOperatorHelper.evaluate("ContainsAny", false, true, "test_test1_test", nil, ["Test1"]) )
+			assert( ComparisonOperatorHelper.evaluate("ContainsAny", true, false, "test_test1_test", nil, ["Test1"]) )
+			assert( !ComparisonOperatorHelper.evaluate("ContainsAny", true, true, "test_test1", nil, ["Test1"]) )
+			assert( !ComparisonOperatorHelper.evaluate("ContainsAny", true, false, "test_test1", nil, ["test1"]) )
+			assert( ComparisonOperatorHelper.evaluate("ContainsAny", false, false, "test_dsdsdsdtest1", nil, ["*"]) )
 		end
 
 		def test_evaluate_unsupported_operator
-			assert( !ComparisonOperatorHelper.evaluate("-not-supported-", false, false, nil, nil) )
+			assert( !ComparisonOperatorHelper.evaluate("-not-supported-", false, false, nil, nil, nil) )
 		end	
 	end
 end

@@ -361,6 +361,17 @@ module QueueIt
 			assert(expectedUrl == result.redirectUrl)
 		end
 
+		def test_getIgnoreActionResult
+			testObject = UserInQueueService.new(UserInQueueStateRepositoryMockClass.new())
+			result = testObject.getIgnoreActionResult()
+
+			assert( !result.doRedirect() )
+			assert( result.eventId.nil? )
+			assert( result.queueId.nil? )
+			assert( result.redirectUrl.nil? )
+			assert( result.actionType.eql? 'Ignore' )
+		end
+
 		def generateHash(eventId,queueId ,timestamp, extendableCookie, cookieValidityMinute, secretKey) 
 			token = 'e_' + eventId + '~ts_' + timestamp + '~ce_' + extendableCookie + '~q_' +  queueId
 			if (!cookieValidityMinute.nil?)

@@ -21,11 +21,13 @@ module QueueIt
 		attr_reader :extendQueueCookieCalls
 		attr_reader :validateQueueRequestCalls
 		attr_reader :validateCancelRequestCalls
+		attr_reader :getIgnoreActionResultCalls
 
 		def initialize
 			@extendQueueCookieCalls = {}
 			@validateQueueRequestCalls = {}
 			@validateCancelRequestCalls = {}
+			@getIgnoreActionResultCalls = {}
 		end
 	
 		def extendQueueCookie(eventId, cookieValidityMinute, cookieDomain, secretKey)		
@@ -54,6 +56,10 @@ module QueueIt
 				"customerId" => customerId,
 				"secretKey" => secretKey
 			}
+		end
+
+		def getIgnoreActionResult()
+			@getIgnoreActionResultCalls[@getIgnoreActionResultCalls.length] = {}
 		end
 	end
 
@@ -923,6 +929,100 @@ module QueueIt
 			assert( userInQueueService.validateCancelRequestCalls[0]["config"].eventId == "event1" )
 			assert( userInQueueService.validateCancelRequestCalls[0]["config"].cookieDomain == ".test.com" )
 			assert( userInQueueService.validateCancelRequestCalls[0]["config"].version == 3 )
+		end
+
+		def test_validateRequestByIntegrationConfig_ignoreAction
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)		
+		
+			integrationConfig = 
+			{
+				:Description => "test",
+				:Integrations => 
+				[
+				{
+					:Name => "event1action",
+					:ActionType => "Ignore",
+					:EventId => "event1",
+					:CookieDomain => ".test.com",
+					:Triggers => 
+					[
+					{
+						:TriggerParts => 
+						[
+						{
+							:Operator => "Contains",
+							:ValueToCompare => "event1",
+							:UrlPart => "PageUrl",
+							:ValidatorType => "UrlValidator",
+							:IsNegative => false,
+							:IsIgnoreCase => true
+						}
+						],
+						:LogicalOperator => "And"
+					}
+					],
+					:QueueDomain => "knownusertest.queue-it.net",                
+				}
+				],
+				:CustomerId => "knownusertest",
+				:AccountId => "knownusertest",
+				:Version => 3,
+				:PublishDate => "2017-05-15T21:39:12.0076806Z",
+				:ConfigDataVersion => "1.0.0.1"
+			}
+
+			integrationConfigJson = JSON.generate(integrationConfig)
+			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", HttpRequestMock.new)
+		
+			assert( userInQueueService.getIgnoreActionResultCalls.length.eql? 1 )
+		end
+
+		def test_validateRequestByIntegrationConfig_defaultsTo_ignoreAction
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)		
+		
+			integrationConfig = 
+			{
+				:Description => "test",
+				:Integrations => 
+				[
+				{
+					:Name => "event1action",
+					:ActionType => "some-future-action-type",
+					:EventId => "event1",
+					:CookieDomain => ".test.com",
+					:Triggers => 
+					[
+					{
+						:TriggerParts => 
+						[
+						{
+							:Operator => "Contains",
+							:ValueToCompare => "event1",
+							:UrlPart => "PageUrl",
+							:ValidatorType => "UrlValidator",
+							:IsNegative => false,
+							:IsIgnoreCase => true
+						}
+						],
+						:LogicalOperator => "And"
+					}
+					],
+					:QueueDomain => "knownusertest.queue-it.net",                
+				}
+				],
+				:CustomerId => "knownusertest",
+				:AccountId => "knownusertest",
+				:Version => 3,
+				:PublishDate => "2017-05-15T21:39:12.0076806Z",
+				:ConfigDataVersion => "1.0.0.1"
+			}
+
+			integrationConfigJson = JSON.generate(integrationConfig)
+			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", HttpRequestMock.new)
+		
+			assert( userInQueueService.getIgnoreActionResultCalls.length.eql? 1 )
 		end
 	end
 end
