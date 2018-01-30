@@ -70,12 +70,14 @@ module QueueIt
 		attr_reader :eventId
 		attr_reader :queueId
 		attr_reader :redirectUrl
+		attr_reader :redirectType
 
-		def initialize(actionType, eventId, queueId, redirectUrl)
+		def initialize(actionType, eventId, queueId, redirectUrl, redirectType)
 			@actionType = actionType
 			@eventId = eventId
 			@queueId = queueId
 			@redirectUrl = redirectUrl
+			@redirectType = redirectType
 		end
 
 		def doRedirect

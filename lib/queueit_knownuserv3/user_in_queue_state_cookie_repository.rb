@@ -12,14 +12,12 @@ module QueueIt
 
 		def cancelQueueCookie(eventId, cookieDomain) 
 			cookieKey = self.class.getCookieKey(eventId)
-			@cookieManager.setCookie(cookieKey, nil, -1, cookieDomain)		
+			@cookieManager.setCookie(cookieKey, nil, -1, cookieDomain)
 		end
 
-		def store(eventId, queueId, isStateExtendable, cookieValidityMinute, cookieDomain, secretKey)
+		def store(eventId, queueId, fixedCookieValidityMinutes, cookieDomain, redirectType, secretKey)
 			cookieKey = self.class.getCookieKey(eventId)
-			expirationTime = (Time.now.getutc.tv_sec + (cookieValidityMinute * 60)).to_s
-			isStateExtendableString = (isStateExtendable) ? 'true' : 'false'
-			cookieValue = createCookieValue(queueId, isStateExtendableString, expirationTime, secretKey)
+			cookieValue = createCookieValue(eventId, queueId, fixedCookieValidityMinutes.to_i, redirectType, secretKey)
 			@cookieManager.setCookie(cookieKey, cookieValue, Time.now + (24*60*60), cookieDomain)
 		end
 
@@ -27,19 +25,22 @@ module QueueIt
 			 return QUEUEIT_DATA_KEY + '_' + eventId
 		end
 
-		def createCookieValue(queueId, isStateExtendable, expirationTime, secretKey) 
-			hashValue = OpenSSL::HMAC.hexdigest('sha256', secretKey, queueId + isStateExtendable + expirationTime) 
-			cookieValue = "QueueId=" + queueId + "&IsCookieExtendable=" + isStateExtendable + "&Expires=" + expirationTime + "&Hash=" + hashValue        
+		def createCookieValue(eventId, queueId, fixedCookieValidityMinutes, redirectType, secretKey) 
+			issueTime = Time.now.getutc.tv_sec
+			hashValue = generateHash(eventId, queueId, fixedCookieValidityMinutes, redirectType, issueTime, secretKey)
+			
+			fixedCookieValidityMinutesPart = ""
+			if(!Utils.isNilOrEmpty(fixedCookieValidityMinutes))
+				fixedCookieValidityMinutesPart = "&FixedValidityMins=" + fixedCookieValidityMinutes
+			end
+		
+			cookieValue = "EventId=" + eventId + "&QueueId=" + queueId + fixedCookieValidityMinutesPart + "&RedirectType=" + redirectType + "&IssueTime=" + issueTime + "&Hash=" + hashValue		
 			return cookieValue
 		end
     
 		def getCookieNameValueMap(cookieValue) 
 			result = Hash.new 
 			cookieNameValues = cookieValue.split("&")
-			if (cookieNameValues.length != 4) 
-				return result
-			end
-
 			cookieNameValues.each do |item|
 				arr = item.split("=")
 				if(arr.length == 2)
@@ -49,34 +50,72 @@ module QueueIt
 			return result
 		end
 
-		def isCookieValid(cookieNameValueMap, secretKey) 
+		def generateHash(eventId, queueId, fixedCookieValidityMinutes, redirectType, issueTime, secretKey)
+			OpenSSL::HMAC.hexdigest('sha256', secretKey, eventId + queueId + fixedCookieValidityMinutes + redirectType + issueTime)			
+		end
+
+		def isCookieValid(secretKey, cookieNameValueMap, eventId, cookieValidityMinutes, validateTime) 
 			begin
-				if (!cookieNameValueMap.key?("IsCookieExtendable")) 
+				if (!cookieNameValueMap.key?("EventId")) 
 					return false
 				end
-				if (!cookieNameValueMap.key?("Expires")) 
-					return false
-				end
-				if (!cookieNameValueMap.key?("Hash")) 
-					return false
-				end
+				
 				if (!cookieNameValueMap.key?("QueueId")) 
 					return false
 				end
-				hashValue = OpenSSL::HMAC.hexdigest('sha256', secretKey, cookieNameValueMap["QueueId"] + cookieNameValueMap["IsCookieExtendable"] + cookieNameValueMap["Expires"]) 
-				if (hashValue != cookieNameValueMap["Hash"]) 
-					return false
-				end		
-				if(Integer(cookieNameValueMap["Expires"]) < Time.now.getutc.tv_sec) 
+				
+				if (!cookieNameValueMap.key?("RedirectType")) 
 					return false
 				end
-				return true
+				
+				if (!cookieNameValueMap.key?("IssueTime")) 
+					return false
+				end
+				
+				if (!cookieNameValueMap.key?("Hash")) 
+					return false
+				end
+
+				fixedCookieValidityMinutes = ""
+				if (cookieNameValueMap.key?("FixedValidityMins")) 
+					fixedCookieValidityMinutes = cookieNameValueMap["FixedValidityMins"]
+				end
+
+				hashValue = generateHash(
+					cookieNameValueMap["EventId"], 
+					cookieNameValueMap["QueueId"],
+					fixedCookieValidityMinutes,
+					cookieNameValueMap["RedirectType"],
+					cookieNameValueMap["IssueTime"],
+					secretKey)
+				
+				if (hashValue != cookieNameValueMap["Hash"]) 
+					return false
+				end						
+				
+				if (eventId.upcase != cookieNameValueMap["eventId"].upcase) 
+					return false
+				end
+				
+				if(validateTime)
+					validity = cookieValidityMinutes
+					if(!Utils.isNilOrEmpty(fixedCookieValidityMinutes))
+						validity = fixedCookieValidityMinutes.to_i
+					end
+
+					expirationTime = cookieNameValueMap["IssueTime"] + (validity*60)
+					if(expirationTime < Time.now.getutc.tv_sec)
+						return false
+					end
+				end        		
+				
+				return true			
 			rescue
 				return false
 			end
 		end
 
-		def extendQueueCookie(eventId, cookieValidityMinute, cookieDomain, secretKey)       
+		def reissueQueueCookie(eventId, cookieValidityMinutes, cookieDomain, secretKey)       
 			cookieKey = self.class.getCookieKey(eventId)
 			cookieValue = @cookieManager.getCookie(cookieKey)
 			if (cookieValue.nil?) 
@@ -84,42 +123,63 @@ module QueueIt
 			end
        
 			cookieNameValueMap = getCookieNameValueMap(cookieValue)
-			if (!isCookieValid(cookieNameValueMap, secretKey)) 
+			if (!isCookieValid(secretKey, cookieNameValueMap, eventId, cookieValidityMinutes, true)) 
 				return 
 			end
-			expirationTime = (Time.now.getutc.tv_sec + (cookieValidityMinute * 60)).to_s
-			cookieValue = createCookieValue(cookieNameValueMap["QueueId"], cookieNameValueMap["IsCookieExtendable"], expirationTime, secretKey)
+
+			fixedCookieValidityMinutes = ""
+			if (cookieNameValueMap.key?("FixedValidityMins")) 
+				fixedCookieValidityMinutes = cookieNameValueMap["FixedValidityMins"]
+			end
+
+			cookieValue = createCookieValue(
+				eventId, 
+				cookieNameValueMap["QueueId"], 
+				fixedCookieValidityMinutes, 
+				cookieNameValueMap["RedirectType"], 
+				secretKey)
+			
 			@cookieManager.setCookie(cookieKey, cookieValue, Time.now + (24*60*60), cookieDomain)
 		end
 
-		def getState(eventId, secretKey) 
+		def getState(eventId, cookieValidityMinutes, secretKey, validateTime) 
 			cookieKey = cookieKey = self.class.getCookieKey(eventId)
 			if (@cookieManager.getCookie(cookieKey).nil?) 
-				return StateInfo.new(false, nil, false, 0)
+				return StateInfo.new(false, nil, nil, nil)
 			end
 			cookieNameValueMap = getCookieNameValueMap(@cookieManager.getCookie(cookieKey))
-			if (!isCookieValid(cookieNameValueMap, secretKey))
-				return StateInfo.new(false, nil, false,0)
+			if (!isCookieValid(secretKey, cookieNameValueMap, eventId, cookieValidityMinutes, validateTime))
+				return StateInfo.new(false, nil, nil, nil)
 			end
+
+			fixedCookieValidityMinutes = nil
+			if (cookieNameValueMap.key?("FixedValidityMins")) 
+				fixedCookieValidityMinutes = cookieNameValueMap["FixedValidityMins"].to_i
+			end
+
 			return StateInfo.new(
 				true, 
 				cookieNameValueMap["QueueId"], 
-				cookieNameValueMap["IsCookieExtendable"] == 'true',
-				Integer(cookieNameValueMap["Expires"]))
+				fixedCookieValidityMinutes,
+				cookieNameValueMap["RedirectType"])
 		end
 	end
 
 	class StateInfo 
 		attr_reader :isValid
 		attr_reader :queueId
-		attr_reader :isStateExtendable    
-		attr_reader :expires # used just for unit tests
+		attr_reader :fixedCookieValidityMinutes
+		attr_reader :redirectType
 
-		def initialize(isValid, queueId, isStateExtendable, expires) 
+		def initialize(isValid, queueId, fixedCookieValidityMinutes, redirectType) 
 			@isValid = isValid
 			@queueId = queueId
-			@isStateExtendable = isStateExtendable
-			@expires = expires
+			@fixedCookieValidityMinutes = fixedCookieValidityMinutes
+			@redirectType = redirectType
+		end
+
+		def isStateExtendable
+			return @isValid && @fixedCookieValidityMinutes.nil?
 		end
 	end
 end

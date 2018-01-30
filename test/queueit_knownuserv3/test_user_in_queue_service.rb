@@ -22,18 +22,24 @@ module QueueIt
 			}
 		end
 
-		def store(eventId, queueId,isStateExtendable, cookieValidityMinute, cookieDomain, customerSecretKey) 
-			arrayFunctionCallsArgs['store'].push([eventId,
+		def store(eventId, queueId, fixedCookieValidityMinutes, cookieDomain, redirectType, secretKey) 
+			arrayFunctionCallsArgs['store'].push([
+				eventId,
 				queueId,
-				isStateExtendable,
-				cookieValidityMinute,
+				fixedCookieValidityMinutes,
 				cookieDomain,
-				customerSecretKey])
+				redirectType,
+				secretKey
+			])
 		end
 
-		def getState(eventId, customerSecretKey) 
-			arrayFunctionCallsArgs['getState'].push([eventId,
-				customerSecretKey])
+		def getState(eventId, cookieValidityMinutes, secretKey, validateTime) 
+			arrayFunctionCallsArgs['getState'].push([
+				eventId,
+				cookieValidityMinutes,
+				secretKey,
+				validateTime
+			])
 			return arrayReturns['getState'][arrayFunctionCallsArgs['getState'].length - 1]
 		end
 
@@ -41,12 +47,13 @@ module QueueIt
 			arrayFunctionCallsArgs['cancelQueueCookie'].push([eventId, cookieDomain])
 		end
 
-		def extendQueueCookie(eventId, cookieValidityMinute, cookieDomain, customerSecretKey) 
+		def reissueQueueCookie(eventId, cookieValidityMinutes, cookieDomain, secretKey)
 			arrayFunctionCallsArgs['store'].push([
 				eventId,
-				cookieValidityMinute,
+				cookieValidityMinutes,
 				cookieDomain,
-				customerSecretKey])
+				secretKey
+			])
 		end
 
 		def expectCall(functionName, secquenceNo, argument) 
@@ -82,14 +89,14 @@ module QueueIt
 			queueConfig.cookieValidityMinute = 10
 			queueConfig.extendCookieValidity = false
 			cookieProviderMock =  UserInQueueStateRepositoryMockClass.new()
-			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(true, "queueId", true  ,   Time.now.getutc.to_i+ 10 * 60))
+			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(true, "queueId", nil, "idle"))
 			testObject = UserInQueueService.new(cookieProviderMock)
 			result = testObject.validateQueueRequest("url", "token", queueConfig, "customerid", "key")
         
 			assert(!result.doRedirect())
 			assert(result.queueId == "queueId")
 			assert(!cookieProviderMock.expectCallAny('store'))
-			assert(cookieProviderMock.expectCall('getState', 1,["e1", 'key']))
+			assert(cookieProviderMock.expectCall('getState', 1,["e1", 10, 'key', true]))
 		end
 
 		def test_ValidateQueueRequest_ValidState_ExtendableCookie_CookieExtensionFromConfig_DoNotRedirectDoStoreCookieWithExtension
@@ -101,14 +108,14 @@ module QueueIt
 			queueConfig.extendCookieValidity=true
          
 			cookieProviderMock =  UserInQueueStateRepositoryMockClass.new()
-			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(true, "queueId", true  ,   Time.now.getutc.to_i+ 10 * 60))
+			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(true, "queueId", nil, "disabled"))
 			testObject = UserInQueueService.new(cookieProviderMock)
 			result = testObject.validateQueueRequest("url", "token", queueConfig, "customerid", "key")
 			assert(!result.doRedirect())
 			assert(result.eventId == 'e1')
 			assert(result.queueId == "queueId")
      
-			assert(cookieProviderMock.expectCall('store', 1, ["e1", 'queueId',true, 10, 'testDomain', "key"]))
+			assert(cookieProviderMock.expectCall('store', 1, ["e1", 'queueId', nil, 'testDomain', "disabled", "key"]))
 		end
 
 		def test_ValidateQueueRequest_ValidState_NoExtendableCookie_DoNotRedirectDoNotStoreCookieWithExtension
@@ -118,7 +125,7 @@ module QueueIt
 			queueConfig.cookieValidityMinute = 10
 			queueConfig.extendCookieValidity = true
 			cookieProviderMock = UserInQueueStateRepositoryMockClass.new()
-			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(true, "queueId", false  ,   Time.now.getutc.to_i+ 10 * 60))
+			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(true, "queueId", 3, "idle"))
 			testObject = UserInQueueService.new(cookieProviderMock)
 			result = testObject.validateQueueRequest("url", "token", queueConfig, "customerid", "key")
 			assert(!result.doRedirect())
@@ -138,9 +145,9 @@ module QueueIt
 			url = "http://test.test.com?b=h"
          
 			cookieProviderMock = UserInQueueStateRepositoryMockClass.new()
-			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false, nil, false  ,   -1))
+			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false, nil, nil, nil))
             
-			token = generateHash('e1','queueId', (Time.now.getutc.to_i + (3 * 60)).to_s, 'False', nil, key)
+			token = generateHash('e1', 'queueId', (Time.now.getutc.to_i + (3 * 60)).to_s, 'False', nil, 'idle', key)
 			token = token.sub("False", 'True')
    	    
 			expectedErrorUrl = "https://testDomain.com/error/hash/?c=testCustomer&e=e1" + 
@@ -173,8 +180,8 @@ module QueueIt
 			queueConfig.version = 11
 			url = "http://test.test.com?b=h"
 			cookieProviderMock = UserInQueueStateRepositoryMockClass.new
-			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false,nil, false,   -1))
-			token = generateHash('e1','queueId', (Time.now.getutc.to_i - (3 * 60)).to_s, 'False', nil, key)
+			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false, nil, nil, nil))
+			token = generateHash('e1','queueId', (Time.now.getutc.to_i - (3 * 60)).to_s, 'False', nil, 'queue', key)
 			expectedErrorUrl = "https://testDomain.com/error/timestamp/?c=testCustomer&e=e1" + 
 					  "&ver=v3-ruby-" + UserInQueueService::SDK_VERSION +
 						"&cver=11" +
@@ -204,8 +211,8 @@ module QueueIt
 			queueConfig.version = 11
 			url = "http://test.test.com?b=h"
 			cookieProviderMock = UserInQueueStateRepositoryMockClass.new
-			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false,nil, false,   -1))
-			token = generateHash('e1', 'queueId',(Time.now.getutc.to_i - (3 * 60)).to_s, 'False', nil, key)
+			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false, nil, nil, nil))
+			token = generateHash('e1', 'queueId',(Time.now.getutc.to_i - (3 * 60)).to_s, 'False', nil, 'queue', key)
 			expectedErrorUrl = "https://testDomain.com/error/eventid/?c=testCustomer&e=e2" + 
 					"&ver=v3-ruby-" + UserInQueueService::SDK_VERSION + "&cver=11" +
 					"&queueittoken=" + token +
@@ -223,7 +230,7 @@ module QueueIt
 			assert(urlWithoutTimeStamp.upcase == expectedErrorUrl.upcase)
 		end
 
-		def test_ValidateQueueRequest_NoCookie_ValidToken_ExtendableCookie_DoNotRedirect_StoreEextendableCookie
+		def test_ValidateQueueRequest_NoCookie_ValidToken_ExtendableCookie_DoNotRedirect_StoreExtendableCookie
 			key = "4e1db821-a825-49da-acd0-5d376f2068db"
 			queueConfig = QueueEventConfig.new
 			queueConfig.eventId = "e1"
@@ -234,18 +241,19 @@ module QueueIt
 			queueConfig.version = 11
 			url = "http://test.test.com?b=h"
 			cookieProviderMock = UserInQueueStateRepositoryMockClass.new
-			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false, nil, false,   -1))
+			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false, nil, nil, nil))
         
-			token = generateHash('e1', 'queueId',(Time.now.getutc.to_i + (3 * 60)).to_s, 'true', nil, key)
+			token = generateHash('e1', 'queueId',(Time.now.getutc.to_i + (3 * 60)).to_s, 'true', nil, 'queue', key)
 			testObject = UserInQueueService.new(cookieProviderMock)
 			result = testObject.validateQueueRequest(url, token, queueConfig, "testCustomer", key)
 			assert(!result.doRedirect())
 			assert(result.eventId == 'e1')
 			assert(result.queueId == 'queueId')
-			assert(cookieProviderMock.expectCall('store', 1, ["e1",'queueId', true, 10, 'testDomain', key]))
+			assert(result.redirectType == 'queue')
+			assert(cookieProviderMock.expectCall('store', 1, ["e1", 'queueId', nil, 'testDomain', 'queue', key]))
 		end
 
-		def test_ValidateQueueRequest_NoCookie_ValidToken_CookieValidityMinuteFromToken_DoNotRedirect_StoreNonEextendableCookie
+		def test_ValidateQueueRequest_NoCookie_ValidToken_CookieValidityMinuteFromToken_DoNotRedirect_StoreNonExtendableCookie
 			key = "4e1db821-a825-49da-acd0-5d376f2068db"
 			queueConfig = QueueEventConfig.new
 			queueConfig.eventId = "e1"
@@ -256,14 +264,15 @@ module QueueIt
 			queueConfig.version = 11
 			url = "http://test.test.com?b=h"
 			cookieProviderMock =  UserInQueueStateRepositoryMockClass.new()
-			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false, nil, false,   -1))
-			token = generateHash('e1', 'queueId',(Time.now.getutc.to_i + (3 * 60)).to_s, 'false', 3, key)
+			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false, nil, nil, nil))
+			token = generateHash('e1', 'queueId',(Time.now.getutc.to_i + (3 * 60)).to_s, 'false', 3, 'DirectLink', key)
 			testObject = UserInQueueService.new(cookieProviderMock)
 			result = testObject.validateQueueRequest(url, token, queueConfig, "testCustomer", key)
 			assert(!result.doRedirect())
 			assert(result.eventId == 'e1')
-			 assert(result.queueId == 'queueId')
-			assert(cookieProviderMock.expectCall('store', 1, ["e1",'queueId', false, 3, 'testDomain', key]))
+			assert(result.queueId == 'queueId')
+			assert(result.redirectType == 'DirectLink')
+			assert(cookieProviderMock.expectCall('store', 1, ["e1",'queueId', 3, 'testDomain', 'DirectLink', key]))
 		end
 
 		def test_NoCookie_NoValidToken_WithoutToken_RedirectToQueue() 
@@ -278,7 +287,7 @@ module QueueIt
 			queueConfig.layoutName = 'testlayout'
 			url = "http://test.test.com?b=h"
 			cookieProviderMock = UserInQueueStateRepositoryMockClass.new()
-			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false, nil, false,   -1))
+			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false, nil, nil, nil))
 			token = ""
 			expectedRedirectUrl = "https://testDomain.com?c=testCustomer&e=e1" +
 					"&ver=v3-ruby-" + UserInQueueService::SDK_VERSION + "&cver=11"  + "&cid=en-US" +
@@ -288,11 +297,11 @@ module QueueIt
 			assert(!cookieProviderMock.expectCallAny('store'))
 			assert(result.doRedirect())
 			assert(result.eventId == 'e1')
-			 assert(result.queueId == nil)
+			assert(result.queueId == nil)
 			assert(result.redirectUrl.upcase() == expectedRedirectUrl.upcase())
 		end
-    
-		def test_NoCookie_NoValidToken_WithoutToken_RedirectToQueue_NoTargetUrl
+    		
+		def test_ValidateRequest_NoCookie_WithoutToken_RedirectToQueue_NotargetUrl
 			key = "4e1db821-a825-49da-acd0-5d376f2068db"
 			queueConfig = QueueEventConfig.new
 			queueConfig.eventId = "e1"
@@ -303,7 +312,7 @@ module QueueIt
 			queueConfig.culture = 'en-US'
 			queueConfig.layoutName = 'testlayout'
 			cookieProviderMock = UserInQueueStateRepositoryMockClass.new()
-			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false, nil, false, -1))
+			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false, nil, nil, nil))
 			token = ""
 			expectedRedirectUrl = "https://testDomain.com?c=testCustomer&e=e1" +
 					"&ver=v3-ruby-" + UserInQueueService::SDK_VERSION + "&cver=11" + "&cid=en-US" +
@@ -313,7 +322,7 @@ module QueueIt
 			assert(!cookieProviderMock.expectCallAny('store'))
 			assert(result.doRedirect())
 			assert(result.eventId == 'e1')
-			 assert(result.queueId == nil)
+			assert(result.queueId == nil)
 			assert(result.redirectUrl.upcase() == expectedRedirectUrl.upcase())
 		end
 
@@ -329,13 +338,13 @@ module QueueIt
 			queueConfig.layoutName = 'testlayout'
 			url = "http://test.test.com?b=h"
 			cookieProviderMock =  UserInQueueStateRepositoryMockClass.new
-			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false, nil, false, -1))
+			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false, nil, nil, nil))
 			testObject = UserInQueueService.new(cookieProviderMock)
 			result = testObject.validateQueueRequest(url, "ts_sasa~cv_adsasa~ce_falwwwse~q_944c1f44-60dd-4e37-aabc-f3e4bb1c8895", queueConfig, "testCustomer", key)
 			assert(!cookieProviderMock.expectCallAny('store'))
 			assert(result.doRedirect())
 			assert(result.eventId == 'e1')
-			   assert(result.queueId == nil)
+			assert(result.queueId == nil)
 			assert(result.redirectUrl.start_with?("https://testDomain.com/error/hash/?c=testCustomer&e=e1"))
 		end
 
@@ -348,7 +357,7 @@ module QueueIt
 
 			url = "http://test.test.com?b=h"
 			cookieProviderMock = UserInQueueStateRepositoryMockClass.new()
-			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(true, "queueId", true, Time.now.getutc.to_i+ 10 * 60))
+			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(true, "queueId", 3, "idle"))
 			expectedUrl = "https://testDomain.com/cancel/testCustomer/e1/?c=testCustomer&e=e1&ver=v3-ruby-" + UserInQueueService::SDK_VERSION + "&cver=10&r=" + CGI.escape(url);
 		
 			testObject = UserInQueueService.new(cookieProviderMock)
@@ -372,11 +381,14 @@ module QueueIt
 			assert( result.actionType.eql? 'Ignore' )
 		end
 
-		def generateHash(eventId,queueId ,timestamp, extendableCookie, cookieValidityMinute, secretKey) 
+		def generateHash(eventId, queueId, timestamp, extendableCookie, cookieValidityMinutes, redirectType, secretKey) 
 			token = 'e_' + eventId + '~ts_' + timestamp + '~ce_' + extendableCookie + '~q_' +  queueId
-			if (!cookieValidityMinute.nil?)
-				token = token + '~cv_' + cookieValidityMinute.to_s
-			end 
+			if (!cookieValidityMinutes.nil?)
+				token = token + '~cv_' + cookieValidityMinutes.to_s
+			end
+			if (!redirectType.nil?)
+				token = token + '~rt_' + redirectType
+			end
 			return token + '~h_' + OpenSSL::HMAC.hexdigest('sha256', secretKey, token)       
 		end
 	end

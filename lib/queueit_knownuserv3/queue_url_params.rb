@@ -3,7 +3,7 @@ module QueueIt
 		KEY_VALUE_SEPARATOR_GROUP_CHAR = '~';
 		KEY_VALUE_SEPARATOR_CHAR = '_';
 		TIMESTAMP_KEY = "ts"
-		COOKIE_VALIDITY_MINUTE_KEY = "cv";
+		COOKIE_VALIDITY_MINUTES_KEY = "cv";
 		EVENT_ID_KEY = "e";
 		EXTENDABLE_COOKIE_KEY = "ce";
 		HASH_KEY = "h";
@@ -14,7 +14,7 @@ module QueueIt
 		attr_accessor :eventId
 		attr_accessor :hashCode
 		attr_accessor :extendableCookie
-		attr_accessor :cookieValidityMinute
+		attr_accessor :cookieValidityMinutes
 		attr_accessor :queueITToken
 		attr_accessor :queueITTokenWithoutHash
 		attr_accessor :queueId
@@ -25,7 +25,7 @@ module QueueIt
 			@eventId = ""
 			@hashCode = ""
 			@extendableCookie = false
-			@cookieValidityMinute = nil
+			@cookieValidityMinutes = nil
 			@queueITToken = ""
 			@queueITTokenWithoutHash = ""
 			@queueId = ""
@@ -51,11 +51,11 @@ module QueueIt
 							rescue
 								result.timeStamp = 0					
 							end
-						when COOKIE_VALIDITY_MINUTE_KEY
+						when COOKIE_VALIDITY_MINUTES_KEY
 							begin
-								result.cookieValidityMinute = Integer(paramNameValueArr[1])
+								result.cookieValidityMinutes = Integer(paramNameValueArr[1])
 							rescue
-								result.cookieValidityMinute = nil
+								result.cookieValidityMinutes = nil
 							end
 						when EVENT_ID_KEY
 							result.eventId = paramNameValueArr[1]

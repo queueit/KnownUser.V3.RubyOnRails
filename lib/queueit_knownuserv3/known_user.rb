@@ -223,7 +223,7 @@ module QueueIt
 				end
 
 				if(matchedConfig == nil)
-					return RequestValidationResult.new(nil, nil, nil, nil)
+					return RequestValidationResult.new(nil, nil, nil, nil, nil)
 				end
 			
 				# unspecified or 'Queue' specified
@@ -321,9 +321,9 @@ module QueueIt
 					@cookies.delete(key)
 				else
 					if(noExpire)
-						@cookies[key] = { :value => value }
+						@cookies[key] = { :value => value, :httponly => false }
 					else
-						@cookies[key] = { :value => value, :expires => expire }
+						@cookies[key] = { :value => value, :expires => expire, :httponly => false }
 					end
 				end		
 			else
@@ -331,9 +331,9 @@ module QueueIt
 					@cookies.delete(key, :domain => domain)				
 				else
 					if(noExpire)
-						@cookies[key] = { :value => value, :domain => domain }		
+						@cookies[key] = { :value => value, :domain => domain, :httponly => false }		
 					else
-						@cookies[key] = { :value => value, :expires => expire, :domain => domain }		
+						@cookies[key] = { :value => value, :expires => expire, :domain => domain, :httponly => false }		
 					end
 				end		
 			end		
