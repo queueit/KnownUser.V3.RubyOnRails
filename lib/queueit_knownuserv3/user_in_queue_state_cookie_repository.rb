@@ -17,7 +17,7 @@ module QueueIt
 
 		def store(eventId, queueId, fixedCookieValidityMinutes, cookieDomain, redirectType, secretKey)
 			cookieKey = self.class.getCookieKey(eventId)
-			cookieValue = createCookieValue(eventId, queueId, fixedCookieValidityMinutes.to_i, redirectType, secretKey)
+			cookieValue = createCookieValue(eventId, queueId, Utils.toString(fixedCookieValidityMinutes), redirectType, secretKey)
 			@cookieManager.setCookie(cookieKey, cookieValue, Time.now + (24*60*60), cookieDomain)
 		end
 
@@ -26,7 +26,7 @@ module QueueIt
 		end
 
 		def createCookieValue(eventId, queueId, fixedCookieValidityMinutes, redirectType, secretKey) 
-			issueTime = Time.now.getutc.tv_sec
+			issueTime = Time.now.getutc.tv_sec.to_s
 			hashValue = generateHash(eventId, queueId, fixedCookieValidityMinutes, redirectType, issueTime, secretKey)
 			
 			fixedCookieValidityMinutesPart = ""
@@ -51,7 +51,7 @@ module QueueIt
 		end
 
 		def generateHash(eventId, queueId, fixedCookieValidityMinutes, redirectType, issueTime, secretKey)
-			OpenSSL::HMAC.hexdigest('sha256', secretKey, eventId + queueId + fixedCookieValidityMinutes + redirectType + issueTime)			
+			OpenSSL::HMAC.hexdigest('sha256', secretKey, eventId + queueId + fixedCookieValidityMinutes + redirectType + issueTime)
 		end
 
 		def isCookieValid(secretKey, cookieNameValueMap, eventId, cookieValidityMinutes, validateTime) 
@@ -80,7 +80,7 @@ module QueueIt
 				if (cookieNameValueMap.key?("FixedValidityMins")) 
 					fixedCookieValidityMinutes = cookieNameValueMap["FixedValidityMins"]
 				end
-
+				
 				hashValue = generateHash(
 					cookieNameValueMap["EventId"], 
 					cookieNameValueMap["QueueId"],
@@ -93,7 +93,7 @@ module QueueIt
 					return false
 				end						
 				
-				if (eventId.upcase != cookieNameValueMap["eventId"].upcase) 
+				if (eventId.upcase != cookieNameValueMap["EventId"].upcase) 
 					return false
 				end
 				
@@ -102,8 +102,8 @@ module QueueIt
 					if(!Utils.isNilOrEmpty(fixedCookieValidityMinutes))
 						validity = fixedCookieValidityMinutes.to_i
 					end
-
-					expirationTime = cookieNameValueMap["IssueTime"] + (validity*60)
+					
+					expirationTime = cookieNameValueMap["IssueTime"].to_i + (validity*60)
 					if(expirationTime < Time.now.getutc.tv_sec)
 						return false
 					end
