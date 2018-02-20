@@ -1,9 +1,11 @@
+require 'cgi'
 require 'json'
 
 module QueueIt
 	class KnownUser
 		QUEUEIT_TOKEN_KEY = "queueittoken"
 		QUEUEIT_DEBUG_KEY = "queueitdebug"
+		QUEUEIT_AJAX_HEADER_KEY = "x-queueit-ajaxpageurl"
 	
 		@@userInQueueService = nil	
 		def self.getUserInQueueService(cookieJar)
@@ -14,6 +16,19 @@ module QueueIt
 			return @@userInQueueService
 		end
 		private_class_method :getUserInQueueService
+
+		def self.isQueueAjaxCall(request)
+			return request.headers[QUEUEIT_AJAX_HEADER_KEY] != nil
+		end
+		private_class_method :isQueueAjaxCall
+
+		def self.generateTargetUrl(originalTargetUrl, request)
+			unless isQueueAjaxCall(request)
+				return originalTargetUrl
+			end			
+			return CGI::unescape(request.headers[QUEUEIT_AJAX_HEADER_KEY])			
+		end
+		private_class_method :generateTargetUrl
 
 		def self.convertToInt(value)
 			begin
@@ -115,11 +130,15 @@ module QueueIt
 			end
 
 			userInQueueService = getUserInQueueService(request.cookie_jar)
-			userInQueueService.validateQueueRequest(targetUrl, queueitToken, queueConfig, customerId, secretKey)
+			result = userInQueueService.validateQueueRequest(targetUrl, queueitToken, queueConfig, customerId, secretKey)
+			result.isAjaxResult = isQueueAjaxCall(request)
+			
+			return result
 		end
 		private_class_method :_resolveQueueRequestByLocalConfig
 	
 		def self._cancelRequestByLocalConfig(targetUrl, queueitToken, cancelConfig, customerId, secretKey, request, debugEntries)
+			targetUrl = generateTargetUrl(targetUrl, request)
 			isDebug = getIsDebug(queueitToken, secretKey)
 			if(isDebug)
 				debugEntries["TargetUrl"] = targetUrl
@@ -158,7 +177,10 @@ module QueueIt
 			end
 
 			userInQueueService = getUserInQueueService(request.cookie_jar)
-			userInQueueService.validateCancelRequest(targetUrl, cancelConfig, customerId, secretKey)
+			result = userInQueueService.validateCancelRequest(targetUrl, cancelConfig, customerId, secretKey)
+			result.isAjaxResult = isQueueAjaxCall(request)
+			
+			return result
 		end
 		private_class_method :_cancelRequestByLocalConfig
 
@@ -183,6 +205,7 @@ module QueueIt
 		def self.resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, request)
 			debugEntries = Hash.new
 			begin
+				targetUrl = generateTargetUrl(targetUrl, request)
 				return _resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, request, debugEntries)
 			ensure
 				setDebugCookie(debugEntries, request.cookie_jar)
@@ -228,15 +251,18 @@ module QueueIt
 			
 				# unspecified or 'Queue' specified
 				if(!matchedConfig.key?("ActionType") || Utils.isNilOrEmpty(matchedConfig["ActionType"]) || matchedConfig["ActionType"].eql?(ActionTypes::QUEUE))
-					handleQueueAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, customerId, secretKey, matchedConfig, request, debugEntries)
+					return handleQueueAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, customerId, secretKey, matchedConfig, request, debugEntries)
 				
 				elsif(matchedConfig["ActionType"].eql?(ActionTypes::CANCEL))
-					handleCancelAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, customerId, secretKey, matchedConfig, request, debugEntries)
+					return handleCancelAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, customerId, secretKey, matchedConfig, request, debugEntries)
 					
 				# for all unknown types default to 'Ignore'
 				else
 					userInQueueService = getUserInQueueService(request.cookie_jar)
-					userInQueueService.getIgnoreActionResult()
+					result = userInQueueService.getIgnoreActionResult()
+					result.isAjaxResult = isQueueAjaxCall(request)
+					
+					return result
 				end
 
 			rescue StandardError => stdErr
@@ -263,20 +289,20 @@ module QueueIt
 				when "EventTargetUrl"
 					targetUrl = ''
 				else
-					targetUrl = currentUrlWithoutQueueITToken
+					targetUrl = generateTargetUrl(currentUrlWithoutQueueITToken, request)
 			end
 
 			return _resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, request, debugEntries)		
 		end
 
 		def self.handleCancelAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, customerId, secretKey, matchedConfig, request, debugEntries)
-			cancelConfig = CancelEventConfig.new;
+			cancelConfig = CancelEventConfig.new
 			cancelConfig.eventId = matchedConfig["EventId"]
 			cancelConfig.queueDomain = matchedConfig["QueueDomain"]
 			cancelConfig.cookieDomain = matchedConfig["CookieDomain"]
 			cancelConfig.version = customerIntegration["Version"]
             
-			return _cancelRequestByLocalConfig(currentUrlWithoutQueueITToken, queueitToken, cancelConfig, customerId, secretKey, request, debugEntries);
+			return _cancelRequestByLocalConfig(currentUrlWithoutQueueITToken, queueitToken, cancelConfig, customerId, secretKey, request, debugEntries)
 		end
 
 		def self.cancelRequestByLocalConfig(targetUrl, queueitToken, cancelConfig, customerId, secretKey, request)

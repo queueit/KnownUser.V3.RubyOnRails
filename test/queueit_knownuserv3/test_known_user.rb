@@ -11,6 +11,10 @@ module QueueIt
 		attr_accessor :remote_ip
 		attr_accessor :headers
 
+		def initialize
+			@headers = {}
+		end
+
 		def setRealOriginalUrl(proto, host, path)
 			@env = {"rack.url_scheme" => proto, "HTTP_HOST" => host}
 			@original_fullpath = path
@@ -22,12 +26,19 @@ module QueueIt
 		attr_reader :validateQueueRequestCalls
 		attr_reader :validateCancelRequestCalls
 		attr_reader :getIgnoreActionResultCalls
+		
+		attr_accessor :validateQueueRequestResult
+		attr_accessor :validateCancelRequestResult
+		attr_accessor :getIgnoreActionResult
 
 		def initialize
 			@extendQueueCookieCalls = {}
 			@validateQueueRequestCalls = {}
 			@validateCancelRequestCalls = {}
 			@getIgnoreActionResultCalls = {}
+			@validateQueueRequestResult = RequestValidationResult.new(ActionTypes::QUEUE, nil, nil, nil, nil)
+			@validateCancelRequestResult = RequestValidationResult.new(ActionTypes::CANCEL, nil, nil, nil, nil)
+			@getIgnoreActionResult = RequestValidationResult.new(ActionTypes::IGNORE, nil, nil, nil, nil)
 		end
 	
 		def extendQueueCookie(eventId, cookieValidityMinute, cookieDomain, secretKey)		
@@ -47,6 +58,7 @@ module QueueIt
 				"customerId" => customerId,
 				"secretKey" => secretKey
 			}
+			return @validateQueueRequestResult
 		end
 
 		def validateCancelRequest(targetUrl, config, customerId, secretKey)
@@ -56,10 +68,12 @@ module QueueIt
 				"customerId" => customerId,
 				"secretKey" => secretKey
 			}
+			return @validateCancelRequestResult
 		end
 
 		def getIgnoreActionResult()
 			@getIgnoreActionResultCalls[@getIgnoreActionResultCalls.length] = {}
+			return @getIgnoreActionResult
 		end
 	end
 
@@ -83,12 +97,37 @@ module QueueIt
 			cancelConfig.version = 1
 			cancelConfig.cookieDomain = "cookieDomain"
 
-			KnownUser.cancelRequestByLocalConfig("targetUrl", "token", cancelConfig, "customerId", "secretKey", HttpRequestMock.new)
+			result = KnownUser.cancelRequestByLocalConfig("targetUrl", "token", cancelConfig, "customerId", "secretKey", HttpRequestMock.new)
 
 			assert( userInQueueService.validateCancelRequestCalls[0]["targetUrl"] == "targetUrl" )
 			assert( userInQueueService.validateCancelRequestCalls[0]["config"] == cancelConfig )
 			assert( userInQueueService.validateCancelRequestCalls[0]["customerId"] == "customerId" )
 			assert( userInQueueService.validateCancelRequestCalls[0]["secretKey"] == "secretKey" )
+			assert( !result.isAjaxResult )
+		end
+
+		def test_cancelRequestByLocalConfig_AjaxCall
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+		
+			cancelConfig = CancelEventConfig.new
+			cancelConfig.eventId = "eventId"
+			cancelConfig.queueDomain = "queueDomain"
+			cancelConfig.version = 1
+			cancelConfig.cookieDomain = "cookieDomain"
+
+			requestMock = HttpRequestMock.new
+			requestMock.headers = { "x-queueit-ajaxpageurl" => "http%3a%2f%2furl" }
+			userInQueueService.validateCancelRequestResult = RequestValidationResult.new(ActionTypes::CANCEL, "eventId", nil, "http://q.qeuue-it.com", nil)
+
+			result = KnownUser.cancelRequestByLocalConfig("targetUrl", "token", cancelConfig, "customerId", "secretKey", requestMock)
+
+			assert( userInQueueService.validateCancelRequestCalls[0]["targetUrl"] == "http://url" )
+			assert( userInQueueService.validateCancelRequestCalls[0]["config"] == cancelConfig )
+			assert( userInQueueService.validateCancelRequestCalls[0]["customerId"] == "customerId" )
+			assert( userInQueueService.validateCancelRequestCalls[0]["secretKey"] == "secretKey" )
+			assert( result.isAjaxResult )
+			assert( result.getAjaxRedirectUrl.downcase == "http%3a%2f%2fq.qeuue-it.com" )
 		end
 
 		def test_cancelRequestByLocalConfig_setDebugCookie
@@ -490,13 +529,42 @@ module QueueIt
 			queueConfig.cookieValidityMinute = 10
 			queueConfig.version = 12
 
-			KnownUser.resolveQueueRequestByLocalConfig("target", "token", queueConfig, "id", "key", HttpRequestMock.new)
+			result = KnownUser.resolveQueueRequestByLocalConfig("target", "token", queueConfig, "id", "key", HttpRequestMock.new)
 
 			assert( userInQueueService.validateQueueRequestCalls[0]["targetUrl"] == "target" )
 			assert( userInQueueService.validateQueueRequestCalls[0]["queueitToken"] == "token" )
 			assert( userInQueueService.validateQueueRequestCalls[0]["config"] == queueConfig )
 			assert( userInQueueService.validateQueueRequestCalls[0]["customerId"] == "id" )
 			assert( userInQueueService.validateQueueRequestCalls[0]["secretKey"] == "key" )
+			assert( !result.isAjaxResult )
+		end
+
+		def test_resolveQueueRequestByLocalConfig_AjaxCall
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+
+			queueConfig = QueueEventConfig.new
+			queueConfig.cookieDomain = "cookieDomain"
+			queueConfig.layoutName = "layoutName"
+			queueConfig.culture = "culture"
+			queueConfig.eventId = "eventId"
+			queueConfig.queueDomain = "queueDomain"
+			queueConfig.extendCookieValidity = true
+			queueConfig.cookieValidityMinute = 10
+			queueConfig.version = 12
+
+			requestMock = HttpRequestMock.new
+			requestMock.headers = { "x-queueit-ajaxpageurl" => "http%3a%2f%2furl" }
+			userInQueueService.validateQueueRequestResult = RequestValidationResult.new(ActionTypes::QUEUE, "eventId", nil, "http://q.qeuue-it.com", nil)
+
+			result = KnownUser.resolveQueueRequestByLocalConfig("targetUrl", "token", queueConfig, "customerId", "secretKey", requestMock)
+
+			assert( userInQueueService.validateQueueRequestCalls[0]["targetUrl"] == "http://url" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["config"] == queueConfig )
+			assert( userInQueueService.validateQueueRequestCalls[0]["customerId"] == "customerId" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["secretKey"] == "secretKey" )
+			assert( result.isAjaxResult )
+			assert( result.getAjaxRedirectUrl.downcase == "http%3a%2f%2fq.qeuue-it.com" )
 		end
 
 		def test_validateRequestByIntegrationConfig_empty_currentUrlWithoutQueueITToken
@@ -591,7 +659,7 @@ module QueueIt
 			mockRequest.user_agent = 'googlebot'
 			mockRequest.cookie_jar = Hash.new
 			integrationConfigJson = JSON.generate(integrationConfig)
-			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "token", integrationConfigJson, "id", "key", mockRequest)
+			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "token", integrationConfigJson, "id", "key", mockRequest)
 
 			assert( userInQueueService.validateQueueRequestCalls[0]["targetUrl"] == "http://test.com?event1=true" )
 			assert( userInQueueService.validateQueueRequestCalls[0]["queueitToken"] == "token" )
@@ -606,6 +674,86 @@ module QueueIt
 			assert( userInQueueService.validateQueueRequestCalls[0]["config"].cookieValidityMinute == 20 )
 			assert( userInQueueService.validateQueueRequestCalls[0]["config"].cookieDomain == ".test.com" )
 			assert( userInQueueService.validateQueueRequestCalls[0]["config"].version == 3 )
+			assert( !result.isAjaxResult )
+		end
+
+		def test_validateRequestByIntegrationConfig_AjaxCall
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+
+			integrationConfig = 
+			{
+				:Description => "test",
+				:Integrations => 
+				[
+				{
+					:Name => "event1action",
+					#:ActionType => "Queue", #omitting will default to "Queue"
+					:EventId => "event1",
+					:CookieDomain => ".test.com",
+					:LayoutName => "Christmas Layout by Queue-it",
+					:Culture => "",
+					:ExtendCookieValidity => true,
+					:CookieValidityMinute => 20,
+					:Triggers => 
+					[
+					{
+						:TriggerParts => 
+						[
+						{
+							:Operator => "Contains",
+							:ValueToCompare => "event1",
+							:UrlPart => "PageUrl",
+							:ValidatorType => "UrlValidator",
+							:IsNegative => false,
+							:IsIgnoreCase => true
+						},					
+						{
+							:Operator => "Contains",
+							:ValueToCompare => "googlebot",
+							:ValidatorType => "UserAgentValidator",
+							:IsNegative => false,
+							:IsIgnoreCase => false
+						}
+						],
+						:LogicalOperator => "And"
+					}
+					],
+					:QueueDomain => "knownusertest.queue-it.net",
+					:RedirectLogic => "AllowTParameter"
+				}
+				],
+				:CustomerId => "knownusertest",
+				:AccountId => "knownusertest",
+				:Version => 3,
+				:PublishDate => "2017-05-15T21:39:12.0076806Z",
+				:ConfigDataVersion => "1.0.0.1"
+			}
+			mockRequest = HttpRequestMock.new
+			mockRequest.user_agent = 'googlebot'
+			mockRequest.headers = { "x-queueit-ajaxpageurl" => "http%3a%2f%2furl" }
+			mockRequest.cookie_jar = Hash.new
+			integrationConfigJson = JSON.generate(integrationConfig)
+
+			userInQueueService.validateQueueRequestResult = RequestValidationResult.new(ActionTypes::QUEUE, "eventId", nil, "http://q.qeuue-it.com", nil)
+
+			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "token", integrationConfigJson, "id", "key", mockRequest)
+
+			assert( userInQueueService.validateQueueRequestCalls[0]["targetUrl"] == "http://url" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["queueitToken"] == "token" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["customerId"] == "id" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["secretKey"] == "key" )
+
+			assert( userInQueueService.validateQueueRequestCalls[0]["config"].queueDomain == "knownusertest.queue-it.net" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["config"].eventId == "event1" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["config"].culture == "" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["config"].layoutName == "Christmas Layout by Queue-it" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["config"].extendCookieValidity )
+			assert( userInQueueService.validateQueueRequestCalls[0]["config"].cookieValidityMinute == 20 )
+			assert( userInQueueService.validateQueueRequestCalls[0]["config"].cookieDomain == ".test.com" )
+			assert( userInQueueService.validateQueueRequestCalls[0]["config"].version == 3 )
+			assert( result.isAjaxResult )
+			assert( result.getAjaxRedirectUrl.downcase == "http%3a%2f%2fq.qeuue-it.com" )
 		end
 
 		def test_validateRequestByIntegrationConfig_setDebugCookie
@@ -820,9 +968,69 @@ module QueueIt
 			}
 			
 			integrationConfigJson = JSON.generate(integrationConfig)
-			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", HttpRequestMock.new)
+			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", HttpRequestMock.new)
 		
 			assert( userInQueueService.validateQueueRequestCalls[0]['targetUrl'] == "http://test.com" )
+			assert( !result.isAjaxResult )
+		end
+
+		def test_validateRequestByIntegrationConfig_ForcedTargetUrl_AjaxCall
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+		
+			integrationConfig = 
+			{
+				:Description => "test",
+				:Integrations => 
+				[
+				{
+					:Name => "event1action",
+					:ActionType => "Queue",
+					:EventId => "event1",
+					:CookieDomain => ".test.com",
+					:LayoutName => "Christmas Layout by Queue-it",
+					:Culture => "",
+					:ExtendCookieValidity => true,
+					:CookieValidityMinute => 20,
+					:Triggers => 
+					[
+					{
+						:TriggerParts => 
+						[
+						{
+							:Operator => "Contains",
+							:ValueToCompare => "event1",
+							:UrlPart => "PageUrl",
+							:ValidatorType => "UrlValidator",
+							:IsNegative => false,
+							:IsIgnoreCase => true
+						}
+						],
+						:LogicalOperator => "And"
+					}
+					],
+					:QueueDomain => "knownusertest.queue-it.net",
+					:RedirectLogic => "ForcedTargetUrl",
+					:ForcedTargetUrl => "http://test.com"
+				}
+				],
+				:CustomerId => "knownusertest",
+				:AccountId => "knownusertest",
+				:Version => 3,
+				:PublishDate => "2017-05-15T21:39:12.0076806Z",
+				:ConfigDataVersion => "1.0.0.1"
+			}
+			
+			requestMock = HttpRequestMock.new
+			requestMock.headers = { "x-queueit-ajaxpageurl" => "http%3a%2f%2furl" }
+			userInQueueService.validateQueueRequestResult = RequestValidationResult.new(ActionTypes::QUEUE, "eventId", nil, "http://q.qeuue-it.com", nil)
+
+			integrationConfigJson = JSON.generate(integrationConfig)
+			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", requestMock)
+		
+			assert( userInQueueService.validateQueueRequestCalls[0]['targetUrl'] == "http://test.com" )
+			assert( result.isAjaxResult )
+			assert( result.getAjaxRedirectUrl.downcase == "http%3a%2f%2fq.qeuue-it.com" )
 		end
 
 		def test_validateRequestByIntegrationConfig_EventTargetUrl
@@ -872,9 +1080,68 @@ module QueueIt
 			}
 
 			integrationConfigJson = JSON.generate(integrationConfig)
-			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", HttpRequestMock.new)
+			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", HttpRequestMock.new)
 		
 			assert( userInQueueService.validateQueueRequestCalls[0]['targetUrl'] == "" )
+			assert( !result.isAjaxResult )
+		end
+
+		def test_validateRequestByIntegrationConfig_EventTargetUrl_AjaxCall
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)		
+		
+			integrationConfig = 
+			{
+				:Description => "test",
+				:Integrations => 
+				[
+				{
+					:Name => "event1action",
+					:ActionType => "Queue",
+					:EventId => "event1",
+					:CookieDomain => ".test.com",
+					:LayoutName => "Christmas Layout by Queue-it",
+					:Culture => "",
+					:ExtendCookieValidity => true,
+					:CookieValidityMinute => 20,
+					:Triggers => 
+					[
+					{
+						:TriggerParts => 
+						[
+						{
+							:Operator => "Contains",
+							:ValueToCompare => "event1",
+							:UrlPart => "PageUrl",
+							:ValidatorType => "UrlValidator",
+							:IsNegative => false,
+							:IsIgnoreCase => true
+						}
+						],
+						:LogicalOperator => "And"
+					}
+					],
+					:QueueDomain => "knownusertest.queue-it.net",
+					:RedirectLogic => "EventTargetUrl"
+				}
+				],
+				:CustomerId => "knownusertest",
+				:AccountId => "knownusertest",
+				:Version => 3,
+				:PublishDate => "2017-05-15T21:39:12.0076806Z",
+				:ConfigDataVersion => "1.0.0.1"
+			}
+
+			requestMock = HttpRequestMock.new
+			requestMock.headers = { "x-queueit-ajaxpageurl" => "http%3a%2f%2furl" }
+			userInQueueService.validateQueueRequestResult = RequestValidationResult.new(ActionTypes::QUEUE, "eventId", nil, "http://q.qeuue-it.com", nil)
+
+			integrationConfigJson = JSON.generate(integrationConfig)
+			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", requestMock)
+		
+			assert( userInQueueService.validateQueueRequestCalls[0]['targetUrl'] == "" )
+			assert( result.isAjaxResult )
+			assert( result.getAjaxRedirectUrl.downcase == "http%3a%2f%2fq.qeuue-it.com" )
 		end
 
 		def test_validateRequestByIntegrationConfig_CancelAction
@@ -919,7 +1186,7 @@ module QueueIt
 			}
 
 			integrationConfigJson = JSON.generate(integrationConfig)
-			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", HttpRequestMock.new)
+			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", HttpRequestMock.new)
 		
 			assert( userInQueueService.validateCancelRequestCalls[0]["targetUrl"] == "http://test.com?event1=true" )
 			assert( userInQueueService.validateCancelRequestCalls[0]["customerId"] == "customerid" )
@@ -929,6 +1196,67 @@ module QueueIt
 			assert( userInQueueService.validateCancelRequestCalls[0]["config"].eventId == "event1" )
 			assert( userInQueueService.validateCancelRequestCalls[0]["config"].cookieDomain == ".test.com" )
 			assert( userInQueueService.validateCancelRequestCalls[0]["config"].version == 3 )
+			assert( !result.isAjaxResult )
+		end
+
+		def test_validateRequestByIntegrationConfig_CancelAction_AjaxCall
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)		
+		
+			integrationConfig = 
+			{
+				:Description => "test",
+				:Integrations => 
+				[
+				{
+					:Name => "event1action",
+					:ActionType => "Cancel",
+					:EventId => "event1",
+					:CookieDomain => ".test.com",
+					:Triggers => 
+					[
+					{
+						:TriggerParts => 
+						[
+						{
+							:Operator => "Contains",
+							:ValueToCompare => "event1",
+							:UrlPart => "PageUrl",
+							:ValidatorType => "UrlValidator",
+							:IsNegative => false,
+							:IsIgnoreCase => true
+						}
+						],
+						:LogicalOperator => "And"
+					}
+					],
+					:QueueDomain => "knownusertest.queue-it.net",                
+				}
+				],
+				:CustomerId => "knownusertest",
+				:AccountId => "knownusertest",
+				:Version => 3,
+				:PublishDate => "2017-05-15T21:39:12.0076806Z",
+				:ConfigDataVersion => "1.0.0.1"
+			}
+
+			requestMock = HttpRequestMock.new
+			requestMock.headers = { "x-queueit-ajaxpageurl" => "http%3a%2f%2furl" }
+			userInQueueService.validateCancelRequestResult = RequestValidationResult.new(ActionTypes::CANCEL, "eventId", nil, "http://q.qeuue-it.com", nil)
+
+			integrationConfigJson = JSON.generate(integrationConfig)
+			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", requestMock)
+		
+			assert( userInQueueService.validateCancelRequestCalls[0]["targetUrl"] == "http://url" )
+			assert( userInQueueService.validateCancelRequestCalls[0]["customerId"] == "customerid" )
+			assert( userInQueueService.validateCancelRequestCalls[0]["secretKey"] == "secretkey" )
+
+			assert( userInQueueService.validateCancelRequestCalls[0]["config"].queueDomain == "knownusertest.queue-it.net" )
+			assert( userInQueueService.validateCancelRequestCalls[0]["config"].eventId == "event1" )
+			assert( userInQueueService.validateCancelRequestCalls[0]["config"].cookieDomain == ".test.com" )
+			assert( userInQueueService.validateCancelRequestCalls[0]["config"].version == 3 )
+			assert( result.isAjaxResult )
+			assert( result.getAjaxRedirectUrl.downcase == "http%3a%2f%2fq.qeuue-it.com" )
 		end
 
 		def test_validateRequestByIntegrationConfig_ignoreAction
@@ -973,9 +1301,61 @@ module QueueIt
 			}
 
 			integrationConfigJson = JSON.generate(integrationConfig)
-			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", HttpRequestMock.new)
+			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", HttpRequestMock.new)
 		
 			assert( userInQueueService.getIgnoreActionResultCalls.length.eql? 1 )
+			assert( !result.isAjaxResult )
+		end
+
+		def test_validateRequestByIntegrationConfig_ignoreAction_AjaxCall
+			userInQueueService = UserInQueueServiceMock.new 
+			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)		
+		
+			integrationConfig = 
+			{
+				:Description => "test",
+				:Integrations => 
+				[
+				{
+					:Name => "event1action",
+					:ActionType => "Ignore",
+					:EventId => "event1",
+					:CookieDomain => ".test.com",
+					:Triggers => 
+					[
+					{
+						:TriggerParts => 
+						[
+						{
+							:Operator => "Contains",
+							:ValueToCompare => "event1",
+							:UrlPart => "PageUrl",
+							:ValidatorType => "UrlValidator",
+							:IsNegative => false,
+							:IsIgnoreCase => true
+						}
+						],
+						:LogicalOperator => "And"
+					}
+					],
+					:QueueDomain => "knownusertest.queue-it.net",                
+				}
+				],
+				:CustomerId => "knownusertest",
+				:AccountId => "knownusertest",
+				:Version => 3,
+				:PublishDate => "2017-05-15T21:39:12.0076806Z",
+				:ConfigDataVersion => "1.0.0.1"
+			}
+
+			requestMock = HttpRequestMock.new
+			requestMock.headers = { "x-queueit-ajaxpageurl" => "http%3a%2f%2furl" }
+			
+			integrationConfigJson = JSON.generate(integrationConfig)
+			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", requestMock)
+		
+			assert( userInQueueService.getIgnoreActionResultCalls.length.eql? 1 )
+			assert( result.isAjaxResult )
 		end
 
 		def test_validateRequestByIntegrationConfig_defaultsTo_ignoreAction

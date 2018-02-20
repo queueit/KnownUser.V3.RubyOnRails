@@ -1,3 +1,5 @@
+require 'cgi'
+
 module QueueIt
 	class Utils
 		def self.isNilOrEmpty(value)
@@ -71,6 +73,7 @@ module QueueIt
 		attr_reader :queueId
 		attr_reader :redirectUrl
 		attr_reader :redirectType
+		attr_accessor :isAjaxResult
 
 		def initialize(actionType, eventId, queueId, redirectUrl, redirectType)
 			@actionType = actionType
@@ -82,6 +85,17 @@ module QueueIt
 
 		def doRedirect
 			return !Utils.isNilOrEmpty(@redirectUrl)
+		end
+
+		def getAjaxQueueRedirectHeaderKey
+			return "x-queueit-redirect"
+		end
+
+		def getAjaxRedirectUrl
+			if !Utils.isNilOrEmpty(@redirectUrl)				
+				return CGI.escape(@redirectUrl)				
+			end
+			return ""		
 		end
 	end
 
