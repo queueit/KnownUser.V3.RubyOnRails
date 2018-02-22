@@ -55,7 +55,6 @@ If we have the `integrationconfig.json` copied in the rails app folder then
 the following example of a controller is all that is needed to validate that a user has been through the queue:
 
 ```ruby
-
 class ResourceController < ApplicationController
   def index
     begin
@@ -79,19 +78,19 @@ class ResourceController < ApplicationController
 			   secretKey,			   
 			   request)
 
-      if(validationResult.doRedirect)	
-      
+      if(validationResult.doRedirect)      
         #Adding no cache headers to prevent browsers to cache requests
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "Fri, 01 Jan 1990 00:00:00 GMT"
         #end
+        
         # Send the user to the queue - either becuase hash was missing or becuase is was invalid
 	redirect_to validationResult.redirectUrl
       else
         # Request can continue, we remove queueittoken from url to avoid sharing of user specific token	
 	if(requestUrl != requestUrlWithoutToken)
-          redirect_to requestUrlWithoutToken
+            redirect_to requestUrlWithoutToken
 	end
       end
     
@@ -114,6 +113,9 @@ gem "queueit_knownuserv3"
 ```
 
 ## Alternative Implementation
+
+### Queue configuration
+
 If your application server (maybe due to security reasons) is not allowed to do external GET requests, then you have three options:
 
 1. Manually download the configuration file from Queue-it Go self-service portal, save it on your application server and load it from local disk
@@ -157,7 +159,8 @@ class ResourceController < ApplicationController
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "Fri, 01 Jan 1990 00:00:00 GMT"
         #end
-      	# Send the user to the queue - either becuase hash was missing or becuase is was invalid
+      	
+        # Send the user to the queue - either becuase hash was missing or becuase is was invalid
       	redirect_to validationResult.redirectUrl
       else
       	# Request can continue - we remove queueittoken form querystring parameter to avoid sharing of user specific token				
@@ -165,9 +168,74 @@ class ResourceController < ApplicationController
       	requestUrlWithoutToken = requestUrl.gsub(pattern, '')
       	
       	if(requestUrl != requestUrlWithoutToken)
-      		redirect_to requestUrlWithoutToken
+      	    redirect_to requestUrlWithoutToken
       	end
       end
+    rescue StandardError => stdErr
+      # Log the Error
+      puts stdErr.message
+      raise
+    end
+  end
+end
+```
+### Protecting ajax calls on static pages
+If you have some static html pages (might be behind cache servers) and you have some ajax calls from those pages needed to be protected by KnownUser library you need to follow these steps:
+1) You are using v.3.5.1 (or later) of the KnownUser library.
+2) Make sure KnownUser code will not run on static pages (by ignoring those URLs in your integration configuration).
+3) Protect static pages by including this Javascript code:
+```
+<script
+        type="text/javascript"
+        src="//static.queue-it.net/script/knownuserv3.js">
+</script>
+```
+4) Use the following method to protect all dynamic calls (including dynamic pages and ajax calls).
+```ruby
+class ResourceController < ApplicationController
+  def index
+    begin
+	
+      configJson = File.read('integrationconfig.json')
+      customerId = "" # Your Queue-it customer ID
+      secretKey = "" # Your 72 char secret key as specified in Go Queue-it self-service platform
+		
+      requestUrl = request.original_url
+      pattern = Regexp.new("([\\?&])(" + QueueIt::KnownUser::QUEUEIT_TOKEN_KEY + "=[^&]*)", Regexp::IGNORECASE)
+      requestUrlWithoutToken = requestUrl.gsub(pattern, '')
+			
+      queueitToken = request.query_parameters[QueueIt::KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
+
+      # Verify if the user has been through the queue
+      validationResult = QueueIt::KnownUser.validateRequestByIntegrationConfig(
+	                   requestUrlWithoutToken,
+			   queueitToken,
+			   configJson,
+			   customerId,
+			   secretKey,			   
+			   request)
+
+      if(validationResult.doRedirect)      
+        #Adding no cache headers to prevent browsers to cache requests
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "Fri, 01 Jan 1990 00:00:00 GMT"
+        #end
+        
+        if(!validationResult.isAjaxResult)
+            # Send the user to the queue - either becuase hash was missing or becuase is was invalid
+            redirect_to validationResult.redirectUrl
+        else
+            head :ok
+            response.headers[validationResult.getAjaxQueueRedirectHeaderKey()] = validationResult.getAjaxRedirectUrl()
+        end        
+      else
+        # Request can continue, we remove queueittoken from url to avoid sharing of user specific token	
+	if(requestUrl != requestUrlWithoutToken)
+          redirect_to requestUrlWithoutToken
+	end
+      end
+    
     rescue StandardError => stdErr
       # Log the Error
       puts stdErr.message
