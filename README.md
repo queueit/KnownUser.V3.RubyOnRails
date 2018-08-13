@@ -68,8 +68,12 @@ class ResourceController < ApplicationController
       requestUrlWithoutToken = requestUrl.gsub(pattern, '')      
       # The requestUrlWithoutToken is used to match Triggers and as the Target url (where to return the users to).
       # It is therefor important that this is exactly the url of the users browsers. So, if your webserver is 
-      # behind e.g. a load balancer that modifies the host name or port, reformat requestUrlWithoutToken before proceeding.
-			
+      # behind e.g. a load balancer that modifies the host name or port, reformat requestUrlWithoutToken before proceeding.		
+      # Example of replacing host from requestUrlWithoutToken  
+      #requestUriNoToken = URI.parse(requestUrlWithoutToken)
+      #requestUriNoToken.host = "INSERT-REPLACEMENT-HOST-HERE"
+      #requestUrlWithoutToken = requestUriNoToken.to_s		
+		
       queueitToken = request.query_parameters[QueueIt::KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
 
       # Verify if the user has been through the queue
