@@ -65,7 +65,10 @@ class ResourceController < ApplicationController
 		
       requestUrl = request.original_url
       pattern = Regexp.new("([\\?&])(" + QueueIt::KnownUser::QUEUEIT_TOKEN_KEY + "=[^&]*)", Regexp::IGNORECASE)
-      requestUrlWithoutToken = requestUrl.gsub(pattern, '')
+      requestUrlWithoutToken = requestUrl.gsub(pattern, '')      
+      # The requestUrlWithoutToken is used to match Triggers and as the Target url (where to return the users to).
+      # It is therefor important that this is exactly the url of the users browsers. So, if your webserver is 
+      # behind e.g. a load balancer that modifies the host name or port, reformat requestUrlWithoutToken before proceeding.
 			
       queueitToken = request.query_parameters[QueueIt::KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
 
