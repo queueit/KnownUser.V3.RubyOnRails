@@ -1,13 +1,13 @@
 module QueueIt
 	class QueueUrlParams
-		KEY_VALUE_SEPARATOR_GROUP_CHAR = '~';
-		KEY_VALUE_SEPARATOR_CHAR = '_';
+		KEY_VALUE_SEPARATOR_GROUP_CHAR = '~'
+		KEY_VALUE_SEPARATOR_CHAR = '_'
 		TIMESTAMP_KEY = "ts"
-		COOKIE_VALIDITY_MINUTES_KEY = "cv";
+		COOKIE_VALIDITY_MINUTES_KEY = "cv"
 		EVENT_ID_KEY = "e";
-		EXTENDABLE_COOKIE_KEY = "ce";
-		HASH_KEY = "h";
-		QUEUE_ID_KEY = "q";
+		EXTENDABLE_COOKIE_KEY = "ce"
+		HASH_KEY = "h"
+		QUEUE_ID_KEY = "q"
 		REDIRECT_TYPE_KEY = "rt"
 
 		attr_accessor :timeStamp
