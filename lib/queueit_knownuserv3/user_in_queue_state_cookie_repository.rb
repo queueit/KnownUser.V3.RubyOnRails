@@ -143,7 +143,7 @@ module QueueIt
 		end
 
 		def getState(eventId, cookieValidityMinutes, secretKey, validateTime) 
-			cookieKey = cookieKey = self.class.getCookieKey(eventId)
+			cookieKey = self.class.getCookieKey(eventId)
 			if (@cookieManager.getCookie(cookieKey).nil?) 
 				return StateInfo.new(false, nil, nil, nil)
 			end
