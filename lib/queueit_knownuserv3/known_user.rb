@@ -221,10 +221,10 @@ module QueueIt
 				raise KnownUserError, "integrationsConfigString can not be nil or empty."
 			end
 
+			debugEntries = Hash.new	
 			begin
 				customerIntegration = JSON.parse(integrationsConfigString)
-			
-				debugEntries = Hash.new		
+								
 				isDebug = getIsDebug(queueitToken, secretKey)
 				if(isDebug)
 					debugEntries["ConfigVersion"] = customerIntegration["Version"]
