@@ -152,7 +152,7 @@ class ResourceController < ApplicationController
       queueitToken = request.query_parameters[QueueIt::KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
       
       # Verify if the user has been through the queue
-      validationResult = QueueIt::KnownUser.resolveRequestByLocalEventConfig(
+      validationResult = QueueIt::KnownUser.resolveQueueRequestByLocalConfig(
       	                   requestUrl,
 			   queueitToken,
 			   eventConfig,
