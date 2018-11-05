@@ -92,7 +92,7 @@ class ResourceController < ApplicationController
         response.headers["Expires"] = "Fri, 01 Jan 1990 00:00:00 GMT"
         #end
         
-        # Send the user to the queue - either becuase hash was missing or becuase is was invalid
+        # Send the user to the queue - either because hash was missing or because is was invalid
 	redirect_to validationResult.redirectUrl
       else
         # Request can continue, we remove queueittoken from url to avoid sharing of user specific token	
