@@ -71,16 +71,18 @@ module QueueIt
 		attr_reader :actionType
 		attr_reader :eventId
 		attr_reader :queueId
+		attr_reader :tokenIdentifier
 		attr_reader :redirectUrl
 		attr_reader :redirectType
 		attr_accessor :isAjaxResult
 
-		def initialize(actionType, eventId, queueId, redirectUrl, redirectType)
+		def initialize(actionType, eventId, queueId, redirectUrl, redirectType, tokenIdentifier = nil)
 			@actionType = actionType
 			@eventId = eventId
 			@queueId = queueId
 			@redirectUrl = redirectUrl
 			@redirectType = redirectType
+			@tokenIdentifier = tokenIdentifier
 		end
 
 		def doRedirect

@@ -19,9 +19,10 @@ module QueueIt
 						nil,
 						!Utils::isNilOrEmpty(config.cookieDomain) ? config.cookieDomain : '',
 						state.redirectType,
-						secretKey)
+						secretKey,
+						state.tokenIdentifier)
 				end
-				return RequestValidationResult.new(ActionTypes::QUEUE, config.eventId, state.queueId, nil, state.redirectType)            			
+				return RequestValidationResult.new(ActionTypes::QUEUE, config.eventId, state.queueId, nil, state.redirectType, state.tokenIdentifier)            			
 			end
         
 			queueParams = QueueUrlParams::extractQueueParams(queueitToken)
@@ -68,8 +69,9 @@ module QueueIt
 				queueParams.cookieValidityMinutes,				
 				!Utils::isNilOrEmpty(config.cookieDomain) ? config.cookieDomain : '',
 				queueParams.redirectType,
-				secretKey)
-			return RequestValidationResult.new(ActionTypes::QUEUE, config.eventId, queueParams.queueId, nil, queueParams.redirectType)
+				secretKey,
+				queueParams.tokenIdentifier)
+			return RequestValidationResult.new(ActionTypes::QUEUE, config.eventId, queueParams.queueId, nil, queueParams.redirectType, queueParams.tokenIdentifier)
 		end
 
 		def getVaidationErrorResult(customerId, targetUrl, config, qParams, errorCode) 

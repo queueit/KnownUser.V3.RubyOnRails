@@ -9,6 +9,7 @@ module QueueIt
 		HASH_KEY = "h"
 		QUEUE_ID_KEY = "q"
 		REDIRECT_TYPE_KEY = "rt"
+		TOKEN_IDENTIFIER_KEY = "ti"
 
 		attr_accessor :timeStamp
 		attr_accessor :eventId
@@ -19,6 +20,7 @@ module QueueIt
 		attr_accessor :queueITTokenWithoutHash
 		attr_accessor :queueId
 		attr_accessor :redirectType
+		attr_accessor :tokenIdentifier
 
 		def initialize
 			@timeStamp = 0
@@ -30,6 +32,7 @@ module QueueIt
 			@queueITTokenWithoutHash = ""
 			@queueId = ""
 			@redirectType = nil
+			@tokenIdentifier = nil
 		end
 
 		def self.extractQueueParams(queueitToken)
@@ -69,6 +72,8 @@ module QueueIt
 							result.queueId = paramNameValueArr[1]
 						when REDIRECT_TYPE_KEY
 							result.redirectType = paramNameValueArr[1] 
+						when TOKEN_IDENTIFIER_KEY
+							result.tokenIdentifier = paramNameValueArr[1]
 					end		
 				end
 				result.queueITTokenWithoutHash = result.queueITToken.gsub((KEY_VALUE_SEPARATOR_GROUP_CHAR + HASH_KEY + KEY_VALUE_SEPARATOR_CHAR + result.hashCode), "")		

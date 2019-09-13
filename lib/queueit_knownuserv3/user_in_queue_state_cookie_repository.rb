@@ -15,9 +15,9 @@ module QueueIt
 			@cookieManager.setCookie(cookieKey, nil, -1, cookieDomain)
 		end
 
-		def store(eventId, queueId, fixedCookieValidityMinutes, cookieDomain, redirectType, secretKey)
+		def store(eventId, queueId, fixedCookieValidityMinutes, cookieDomain, redirectType, secretKey, tokenIdentifier)
 			cookieKey = self.class.getCookieKey(eventId)
-			cookieValue = createCookieValue(eventId, queueId, Utils.toString(fixedCookieValidityMinutes), redirectType, secretKey)
+			cookieValue = createCookieValue(eventId, queueId, Utils.toString(fixedCookieValidityMinutes), redirectType, secretKey, tokenIdentifier)
 			@cookieManager.setCookie(cookieKey, cookieValue, Time.now + (24*60*60), cookieDomain)
 		end
 
@@ -25,7 +25,7 @@ module QueueIt
 			 return QUEUEIT_DATA_KEY + '_' + eventId
 		end
 
-		def createCookieValue(eventId, queueId, fixedCookieValidityMinutes, redirectType, secretKey) 
+		def createCookieValue(eventId, queueId, fixedCookieValidityMinutes, redirectType, secretKey, tokenIdentifier) 
 			issueTime = Time.now.getutc.tv_sec.to_s
 			hashValue = generateHash(eventId, queueId, fixedCookieValidityMinutes, redirectType, issueTime, secretKey)
 			
@@ -34,7 +34,7 @@ module QueueIt
 				fixedCookieValidityMinutesPart = "&FixedValidityMins=" + fixedCookieValidityMinutes
 			end
 		
-			cookieValue = "EventId=" + eventId + "&QueueId=" + queueId + fixedCookieValidityMinutesPart + "&RedirectType=" + redirectType + "&IssueTime=" + issueTime + "&Hash=" + hashValue		
+			cookieValue = "EventId=" + eventId + "&QueueId=" + queueId + fixedCookieValidityMinutesPart + "&RedirectType=" + redirectType + "&IssueTime=" + issueTime + "&Hash=" + hashValue + '&TokenIdentifier=' + tokenIdentifier
 			return cookieValue
 		end
     
@@ -137,7 +137,8 @@ module QueueIt
 				cookieNameValueMap["QueueId"], 
 				fixedCookieValidityMinutes, 
 				cookieNameValueMap["RedirectType"], 
-				secretKey)
+				secretKey,
+				cookieNameValueMap["TokenIdentifier"])
 			
 			@cookieManager.setCookie(cookieKey, cookieValue, Time.now + (24*60*60), cookieDomain)
 		end
@@ -161,7 +162,8 @@ module QueueIt
 				true, 
 				cookieNameValueMap["QueueId"], 
 				fixedCookieValidityMinutes,
-				cookieNameValueMap["RedirectType"])
+				cookieNameValueMap["RedirectType"],
+			    cookieNameValueMap['TokenIdentifier'])
 		end
 	end
 
@@ -170,12 +172,14 @@ module QueueIt
 		attr_reader :queueId
 		attr_reader :fixedCookieValidityMinutes
 		attr_reader :redirectType
+		attr_reader :tokenIdentifier
 
-		def initialize(isValid, queueId, fixedCookieValidityMinutes, redirectType) 
+		def initialize(isValid, queueId, fixedCookieValidityMinutes, redirectType, tokenIdentifier = nil) 
 			@isValid = isValid
 			@queueId = queueId
 			@fixedCookieValidityMinutes = fixedCookieValidityMinutes
 			@redirectType = redirectType
+			@tokenIdentifier = tokenIdentifier
 		end
 
 		def isStateExtendable
