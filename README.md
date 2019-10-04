@@ -101,9 +101,9 @@ class ResourceController < ApplicationController
       end
     
     rescue StandardError => stdErr
-      # There was an error validationg the request
-      # Use your own logging framework to log the Exception
-      # This was a configuration exception, so we let the user continue
+      # There was an error validating the request
+      # Use your own logging framework to log the error
+      # This was a configuration error, so we let the user continue
       puts stdErr.message
     end
   end
@@ -179,9 +179,9 @@ class ResourceController < ApplicationController
       	end
       end
     rescue StandardError => stdErr
-      # There was an error validationg the request
-      # Use your own logging framework to log the Exception
-      # This was a configuration exception, so we let the user continue
+      # There was an error validating the request
+      # Use your own logging framework to log the error
+      # This was a configuration error, so we let the user continue
       puts stdErr.message
     end
   end
@@ -249,9 +249,9 @@ class ResourceController < ApplicationController
       end
     
     rescue StandardError => stdErr
-      # There was an error validationg the request
-      # Use your own logging framework to log the Exception
-      # This was a configuration exception, so we let the user continue
+      # There was an error validating the request
+      # Use your own logging framework to log the error
+      # This was a configuration error, so we let the user continue
       puts stdErr.message
     end
   end
