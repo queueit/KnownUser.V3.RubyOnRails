@@ -3,7 +3,8 @@ require 'cgi'
 
 module QueueIt
 	class UserInQueueService
-		SDK_VERSION = "3.5.1"
+		SDK_VERSION_NO = "3.6.0"
+		SDK_VERSION = "v3-ruby-" + SDK_VERSION_NO
     
 		def initialize(userInQueueStateRepository)
 			@userInQueueStateRepository = userInQueueStateRepository
@@ -21,14 +22,15 @@ module QueueIt
 						state.redirectType,
 						secretKey)
 				end
-				return RequestValidationResult.new(ActionTypes::QUEUE, config.eventId, state.queueId, nil, state.redirectType)            			
+				return RequestValidationResult.new(ActionTypes::QUEUE, config.eventId, state.queueId, nil, state.redirectType, config.actionName)            			
 			end
-        
+
 			queueParams = QueueUrlParams::extractQueueParams(queueitToken)
+
 			if(!queueParams.nil?) 
-				return getQueueITTokenValidationResult(targetUrl, config.eventId, config, queueParams, customerId, secretKey)
+				return getQueueITTokenValidationResult(targetUrl, config, queueParams, customerId, secretKey)
 			else 
-				return getInQueueRedirectResult(targetUrl, config, customerId)
+				return cancelQueueCookieReturnQueueResult(targetUrl, config, customerId)
 			end
 		end
 
@@ -36,30 +38,27 @@ module QueueIt
 			state = @userInQueueStateRepository.getState(cancelConfig.eventId, -1, secretKey, false)
 			if (state.isValid)
 				@userInQueueStateRepository.cancelQueueCookie(cancelConfig.eventId, cancelConfig.cookieDomain)
-				query = getQueryString(customerId, cancelConfig.eventId, cancelConfig.version, nil, nil) + ( !Utils::isNilOrEmpty(targetUrl) ? ("&r=" +  CGI.escape(targetUrl)) : "" )
-			
-				domainAlias = cancelConfig.queueDomain
-				if (!domainAlias.end_with?("/") )
-					domainAlias = domainAlias + "/"
-				end
-			
-				redirectUrl = "https://" + domainAlias + "cancel/" + customerId + "/" + cancelConfig.eventId + "/?" + query
-				return RequestValidationResult.new(ActionTypes::CANCEL, cancelConfig.eventId, state.queueId, redirectUrl, state.redirectType)			
+				query = getQueryString(customerId, cancelConfig.eventId, cancelConfig.version, cancelConfig.actionName, nil, nil) + 
+							(!Utils::isNilOrEmpty(targetUrl) ? ("&r=" +  Utils.urlEncode(targetUrl)) : "" )						
+				uriPath = "cancel/" + customerId + "/" + cancelConfig.eventId + "/"
+				
+				redirectUrl = generateRedirectUrl(cancelConfig.queueDomain, uriPath, query)
+				return RequestValidationResult.new(ActionTypes::CANCEL, cancelConfig.eventId, state.queueId, redirectUrl, state.redirectType, cancelConfig.actionName)			
 			else
-				return RequestValidationResult.new(ActionTypes::CANCEL, cancelConfig.eventId, nil, nil, nil)			
+				return RequestValidationResult.new(ActionTypes::CANCEL, cancelConfig.eventId, nil, nil, nil, cancelConfig.actionName)			
 			end
 		end 
 
-		def getQueueITTokenValidationResult(targetUrl, eventId, config, queueParams,customerId, secretKey) 
+		def getQueueITTokenValidationResult(targetUrl, config, queueParams,customerId, secretKey) 
 			calculatedHash = OpenSSL::HMAC.hexdigest('sha256', secretKey, queueParams.queueITTokenWithoutHash) 
 			if (calculatedHash.upcase() != queueParams.hashCode.upcase()) 
-				return getVaidationErrorResult(customerId, targetUrl, config, queueParams, "hash")
+				return cancelQueueCookieReturnErrorResult(customerId, targetUrl, config, queueParams, "hash")
 			end
-			if (queueParams.eventId.upcase() != eventId.upcase()) 
-				return getVaidationErrorResult(customerId, targetUrl, config, queueParams, "eventid")
+			if (queueParams.eventId.upcase() != config.eventId.upcase()) 
+				return cancelQueueCookieReturnErrorResult(customerId, targetUrl, config, queueParams, "eventid")
 			end
 			if (queueParams.timeStamp < Time.now.getutc.tv_sec) 
-				return getVaidationErrorResult(customerId, targetUrl, config, queueParams, "timestamp")
+				return cancelQueueCookieReturnErrorResult(customerId, targetUrl, config, queueParams, "timestamp")
 			end
 
 			@userInQueueStateRepository.store(
@@ -69,51 +68,63 @@ module QueueIt
 				!Utils::isNilOrEmpty(config.cookieDomain) ? config.cookieDomain : '',
 				queueParams.redirectType,
 				secretKey)
-			return RequestValidationResult.new(ActionTypes::QUEUE, config.eventId, queueParams.queueId, nil, queueParams.redirectType)
+			return RequestValidationResult.new(ActionTypes::QUEUE, config.eventId, queueParams.queueId, nil, queueParams.redirectType, config.actionName)
 		end
 
-		def getVaidationErrorResult(customerId, targetUrl, config, qParams, errorCode) 
-			query = getQueryString(customerId, config.eventId, config.version, config.culture, config.layoutName) +
+		def cancelQueueCookieReturnErrorResult(customerId, targetUrl, config, qParams, errorCode) 
+			@userInQueueStateRepository.cancelQueueCookie(config.eventId, config.cookieDomain)
+
+			query = getQueryString(customerId, config.eventId, config.version, config.actionName, config.culture, config.layoutName) +
 				"&queueittoken=" + qParams.queueITToken +
 				"&ts=" + Time.now.getutc.tv_sec.to_s +
-				(!Utils::isNilOrEmpty(targetUrl) ? ("&t=" +  CGI.escape(targetUrl)) : "")
-			domainAlias = config.queueDomain
-			if (!domainAlias.end_with?("/") )
-				domainAlias = domainAlias + "/"
-			end
-			redirectUrl = "https://" + domainAlias + "error/" + errorCode + "/?"  + query
-			return RequestValidationResult.new(ActionTypes::QUEUE, config.eventId, nil, redirectUrl, nil)        
+				(!Utils::isNilOrEmpty(targetUrl) ? ("&t=" +  Utils.urlEncode(targetUrl)) : "")
+			
+			redirectUrl = generateRedirectUrl(config.queueDomain, "error/" + errorCode + "/", query)
+
+			return RequestValidationResult.new(ActionTypes::QUEUE, config.eventId, nil, redirectUrl, nil, config.actionName)        
 		end
 
-		def getInQueueRedirectResult(targetUrl, config, customerId) 
-			redirectUrl = "https://" + config.queueDomain + 
-				"?" + getQueryString(customerId, config.eventId, config.version, config.culture, config.layoutName) + 
-				(!Utils::isNilOrEmpty(targetUrl) ? "&t=" +  
-				CGI.escape( targetUrl) : "")
-			return RequestValidationResult.new(ActionTypes::QUEUE, config.eventId, nil, redirectUrl, nil)        
+		def cancelQueueCookieReturnQueueResult(targetUrl, config, customerId) 
+			@userInQueueStateRepository.cancelQueueCookie(config.eventId, config.cookieDomain)
+
+			query = getQueryString(customerId, config.eventId, config.version, config.actionName, config.culture, config.layoutName) + 
+							(!Utils::isNilOrEmpty(targetUrl) ? "&t=" + Utils.urlEncode( targetUrl) : "")		
+
+			redirectUrl = generateRedirectUrl(config.queueDomain, "", query)
+
+			return RequestValidationResult.new(ActionTypes::QUEUE, config.eventId, nil, redirectUrl, nil, config.actionName)        
 		end
 
-		def getQueryString(customerId, eventId, configVersion, culture, layoutName) 
+		def getQueryString(customerId, eventId, configVersion, actionName, culture, layoutName) 
 			queryStringList = Array.new 
-			queryStringList.push("c=" + CGI.escape(customerId))
-			queryStringList.push("e=" + CGI.escape(eventId))
-			queryStringList.push("ver=v3-ruby-" + SDK_VERSION) 
+			queryStringList.push("c=" + Utils.urlEncode(customerId))
+			queryStringList.push("e=" + Utils.urlEncode(eventId))
+			queryStringList.push("ver=" + SDK_VERSION) 
 			queryStringList.push("cver=" + (!configVersion.nil? ? configVersion.to_s : '-1'))
+			queryStringList.push("man=" + Utils.urlEncode(actionName))
+
 			if (!Utils::isNilOrEmpty(culture)) 
-				queryStringList.push("cid=" + CGI.escape(culture))
+				queryStringList.push("cid=" + Utils.urlEncode(culture))
 			end
 			if (!Utils::isNilOrEmpty(layoutName)) 
-				queryStringList.push("l=" + CGI.escape(layoutName))
+				queryStringList.push("l=" + Utils.urlEncode(layoutName))
 			end
 			return queryStringList.join("&")
+		end
+
+		def generateRedirectUrl(queueDomain, uriPath, query)
+			if (!queueDomain.end_with?("/") )
+				queueDomain = queueDomain + "/"
+			end		
+			return "https://" + queueDomain + uriPath + "?" + query
 		end
 
 		def extendQueueCookie(eventId, cookieValidityMinutes, cookieDomain, secretKey) 
 			@userInQueueStateRepository.reissueQueueCookie(eventId, cookieValidityMinutes, cookieDomain, secretKey)
 		end
 
-		def getIgnoreActionResult()
-			return RequestValidationResult.new(ActionTypes::IGNORE, nil, nil, nil, nil)
+		def getIgnoreActionResult(actionName)
+			return RequestValidationResult.new(ActionTypes::IGNORE, nil, nil, nil, nil, actionName)
 		end
 	end
 end

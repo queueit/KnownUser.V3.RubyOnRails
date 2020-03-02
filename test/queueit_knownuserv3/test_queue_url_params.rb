@@ -17,7 +17,8 @@ module QueueIt
 		end
 
 		def test_extractQueueParams_notValidToken
-			queueITToken = "ts_sasa~cv_adsasa~ce_falwwwse~q_944c1f44-60dd-4e37-aabc-f3e4bb1c8895";
+			queueITToken = "ts_sasa~cv_adsasa~ce_falwwwse~q_944c1f44-60dd-4e37-aabc-f3e4bb1c8895~h_218b734e-d5be-4b60-ad66-9b1b326266e2"
+			queueitTokenWithoutHash = "ts_sasa~cv_adsasa~ce_falwwwse~q_944c1f44-60dd-4e37-aabc-f3e4bb1c8895"
 			result = QueueUrlParams.extractQueueParams(queueITToken);
 			assert( result.eventId.empty? )
 			assert( result.timeStamp == 0 )
@@ -25,8 +26,26 @@ module QueueIt
 			assert( result.queueITToken.eql? queueITToken )
 			assert( result.cookieValidityMinutes.nil? )
 			assert( result.queueId.eql? "944c1f44-60dd-4e37-aabc-f3e4bb1c8895" )
-			assert( result.hashCode.empty? )
-			assert( result.queueITTokenWithoutHash.eql? "ts_sasa~cv_adsasa~ce_falwwwse~q_944c1f44-60dd-4e37-aabc-f3e4bb1c8895" )	
+			assert( result.hashCode.eql? "218b734e-d5be-4b60-ad66-9b1b326266e2")
+			assert( result.queueITTokenWithoutHash.eql? queueitTokenWithoutHash)	
+		end
+
+		def test_extractQueueParams_using_queueitToken_with_no_values
+			queueITToken = "e~q~ts~ce~rt~h"
+			result = QueueUrlParams.extractQueueParams(queueITToken);
+			assert( result.eventId.empty? )
+			assert( result.timeStamp == 0 )
+			assert( result.extendableCookie.eql? false )
+			assert( result.queueITToken.eql? queueITToken )
+			assert( result.cookieValidityMinutes.nil? )
+			assert( result.queueId.eql? "" )
+			assert( result.hashCode.empty?)
+			assert( result.queueITTokenWithoutHash.eql? queueITToken)	
+		end
+
+		def test_extractQueueParams_using_no_queueitToken_expect_nil
+			result = QueueUrlParams.extractQueueParams("");
+			assert( result.nil? )
 		end
 	end
 end

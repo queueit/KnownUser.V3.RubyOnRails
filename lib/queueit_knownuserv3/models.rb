@@ -11,6 +11,12 @@ module QueueIt
 			end
 			return value.to_s
 		end
+		def self.urlEncode(value)
+			return CGI.escape(value).gsub("+", "%20").gsub("%7E", "~")
+		end
+		def self.urlDecode(value)
+			return CGI.unescape(value)
+		end
 	end
 
 	class CancelEventConfig
@@ -18,19 +24,22 @@ module QueueIt
 		attr_accessor :queueDomain
 		attr_accessor :cookieDomain
 		attr_accessor :version
+		attr_accessor :actionName
 
 		def initialize
 			@eventId = nil
 			@queueDomain = nil
 			@cookieDomain = nil
 			@version = nil
+			@actionName = "unspecified"
 		end
 
 		def toString
 			return "EventId:" + Utils.toString(eventId) + 
 				   "&Version:" + Utils.toString(version) +
 				   "&QueueDomain:" + Utils.toString(queueDomain) + 
-				   "&CookieDomain:" + Utils.toString(cookieDomain)
+				   "&CookieDomain:" + Utils.toString(cookieDomain) +
+				   "&ActionName:" + Utils.toString(actionName)
 		end
 	end
 
@@ -43,6 +52,7 @@ module QueueIt
 		attr_accessor :cookieValidityMinute
 		attr_accessor :cookieDomain
 		attr_accessor :version
+		attr_accessor :actionName
 
 		def initialize
 			@eventId = nil
@@ -53,6 +63,7 @@ module QueueIt
 			@cookieValidityMinute = nil
 			@cookieDomain = nil
 			@version = nil
+			@actionName = "unspecified"
 		end
 
 		def toString
@@ -63,7 +74,8 @@ module QueueIt
 				   "&ExtendCookieValidity:" + Utils.toString(extendCookieValidity) +
 				   "&CookieValidityMinute:" + Utils.toString(cookieValidityMinute) + 
 				   "&LayoutName:" + Utils.toString(layoutName) + 
-				   "&Culture:" + Utils.toString(culture)
+				   "&Culture:" + Utils.toString(culture) +
+				   "&ActionName:" + Utils.toString(actionName)
 		end
 	end
 
@@ -73,14 +85,16 @@ module QueueIt
 		attr_reader :queueId
 		attr_reader :redirectUrl
 		attr_reader :redirectType
+		attr_accessor :actionName
 		attr_accessor :isAjaxResult
 
-		def initialize(actionType, eventId, queueId, redirectUrl, redirectType)
+		def initialize(actionType, eventId, queueId, redirectUrl, redirectType, actionName)
 			@actionType = actionType
 			@eventId = eventId
 			@queueId = queueId
 			@redirectUrl = redirectUrl
 			@redirectType = redirectType
+			@actionName = actionName
 		end
 
 		def doRedirect
@@ -93,7 +107,7 @@ module QueueIt
 
 		def getAjaxRedirectUrl
 			if !Utils.isNilOrEmpty(@redirectUrl)				
-				return CGI.escape(@redirectUrl)				
+				return Utils.urlEncode(@redirectUrl)				
 			end
 			return ""		
 		end

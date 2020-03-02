@@ -562,30 +562,6 @@ module QueueIt
 			assert( ComparisonOperatorHelper.evaluate("Contains", false, false, "test_dsdsdsdtest1", "*", nil) )
 		end
 
-		def test_evaluate_startsWith_operator
-			assert( ComparisonOperatorHelper.evaluate("StartsWith", false, false, nil, nil, nil) )
-			assert( ComparisonOperatorHelper.evaluate("StartsWith", false, false, "test1_test1_test", "test1", nil) )
-			assert( !ComparisonOperatorHelper.evaluate("StartsWith", false, false, "test1_test1_test", "Test1", nil) )
-			assert( ComparisonOperatorHelper.evaluate("StartsWith", false, true, "test1_test1_test", "Test1", nil) )
-			assert( !ComparisonOperatorHelper.evaluate("StartsWith", true, true, "test1_test1_test", "Test1", nil) )    
-		end
-
-		def test_evaluate_endsWith_operator
-			assert( ComparisonOperatorHelper.evaluate("EndsWith", false, false, nil, nil, nil) )
-			assert( ComparisonOperatorHelper.evaluate("EndsWith", false, false, "test1_test1_testshop", "shop", nil) )
-			assert( !ComparisonOperatorHelper.evaluate("EndsWith", false, false, "test1_test1_testshop2", "shop", nil) )
-			assert( ComparisonOperatorHelper.evaluate("EndsWith", false, true, "test1_test1_testshop", "Shop", nil) )
-			assert( !ComparisonOperatorHelper.evaluate("EndsWith", true, true, "test1_test1_testshop", "Shop", nil) )
-		end
-
-		def test_evaluate_matchesWith_operator
-			assert( ComparisonOperatorHelper.evaluate("MatchesWith", false, false, nil, nil, nil) )
-			assert( ComparisonOperatorHelper.evaluate("MatchesWith", false, false, "test1_test1_testshop", ".*shop.*", nil) )
-			assert( !ComparisonOperatorHelper.evaluate("MatchesWith", false, false, "test1_test1_testshop2", ".*Shop.*", nil) )
-			assert( ComparisonOperatorHelper.evaluate("MatchesWith", false, true, "test1_test1_testshop", ".*Shop.*", nil) )
-			assert( !ComparisonOperatorHelper.evaluate("MatchesWith", true, true, "test1_test1_testshop", ".*Shop.*", nil) )
-		end
-
 		def test_evaluate_equalsAny_operator
 			assert( ComparisonOperatorHelper.evaluate("EqualsAny", false, false, "test1", nil, ["test1"]) )
 			assert( !ComparisonOperatorHelper.evaluate("EqualsAny", false, false, "test1", nil, ["Test1"]) )

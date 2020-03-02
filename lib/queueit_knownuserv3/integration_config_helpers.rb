@@ -211,12 +211,6 @@ module QueueIt
 					return ComparisonOperatorHelper.equals(value, valueToCompare, isNegative, ignoreCase)
 				when "Contains" 
 					return ComparisonOperatorHelper.contains(value, valueToCompare, isNegative, ignoreCase)
-				when "StartsWith"
-					return ComparisonOperatorHelper.startsWith(value, valueToCompare, isNegative, ignoreCase)
-				when "EndsWith"
-					return ComparisonOperatorHelper.endsWith(value, valueToCompare, isNegative, ignoreCase)
-				when "MatchesWith"
-					return ComparisonOperatorHelper.matchesWith(value, valueToCompare, isNegative, ignoreCase)
 				when "EqualsAny"
 					return ComparisonOperatorHelper.equalsAny(value, valuesToCompare, isNegative, ignoreCase)
 				when "ContainsAny"
@@ -241,7 +235,7 @@ module QueueIt
 		end
 
 		def self.contains(value, valueToCompare, isNegative, ignoreCase)
-			if(valueToCompare.eql? "*")
+			if((valueToCompare.eql? "*") && !(value.empty? || value.nil?))
 				return true
 			end
 
@@ -251,49 +245,6 @@ module QueueIt
 			end
 
 			evaluation = value.include? valueToCompare
-			if(isNegative)
-				return !evaluation
-			else
-				return evaluation
-			end
-		end
-
-		def self.startsWith(value, valueToCompare, isNegative, ignoreCase)
-			if(ignoreCase)
-				evaluation = value.upcase.start_with? valueToCompare.upcase
-			else
-				evaluation = value.start_with? valueToCompare
-			end
-
-			if(isNegative)
-				return !evaluation
-			else
-				return evaluation
-			end
-		end
-
-		def self.endsWith(value, valueToCompare, isNegative, ignoreCase)
-			if(ignoreCase)
-				evaluation = value.upcase.end_with? valueToCompare.upcase
-			else
-				evaluation = value.end_with? valueToCompare
-			end
-
-			if(isNegative)
-				return !evaluation
-			else
-				return evaluation
-			end
-		end
-
-		def self.matchesWith(value, valueToCompare, isNegative, ignoreCase)
-			if(ignoreCase)
-				pattern = Regexp.new(valueToCompare, Regexp::IGNORECASE) 
-			else
-				pattern = Regexp.new(valueToCompare)
-			end
-		
-			evaluation = pattern.match(value) != nil
 			if(isNegative)
 				return !evaluation
 			else

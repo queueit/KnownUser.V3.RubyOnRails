@@ -51,26 +51,6 @@ module QueueIt
 		end
 		private_class_method :logMoreRequestDetails
 
-		def self.getIsDebug(queueitToken, secretKey)
-			qParams = QueueUrlParams.extractQueueParams(queueitToken)
-			if(qParams == nil)
-				return false
-			end
-
-			redirectType = qParams.redirectType
-			if(redirectType == nil)
-				return false
-			end
-		
-			if (redirectType.upcase.eql?("DEBUG"))
-				calculatedHash = OpenSSL::HMAC.hexdigest('sha256', secretKey, qParams.queueITTokenWithoutHash)
-				valid = qParams.hashCode.eql?(calculatedHash) 
-				return valid
-			end
-			return false
-		end
-		private_class_method :getIsDebug
-
 		def self.setDebugCookie(debugEntries, cookieJar)
 			if(debugEntries == nil || debugEntries.length == 0)
 				return
@@ -86,9 +66,11 @@ module QueueIt
 		end
 		private_class_method :setDebugCookie
 
-		def self._resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, request, debugEntries)
-			isDebug = getIsDebug(queueitToken, secretKey)
+		def self._resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, request, debugEntries, isDebug)
+			
 			if(isDebug)
+				debugEntries["SdkVersion"] = UserInQueueService::SDK_VERSION
+				debugEntries["Runtime"] = getRuntime()
 				debugEntries["TargetUrl"] = targetUrl
 				debugEntries["QueueitToken"] = queueitToken
 				debugEntries["OriginalUrl"] = getRealOriginalUrl(request)
@@ -137,10 +119,12 @@ module QueueIt
 		end
 		private_class_method :_resolveQueueRequestByLocalConfig
 	
-		def self._cancelRequestByLocalConfig(targetUrl, queueitToken, cancelConfig, customerId, secretKey, request, debugEntries)
-			targetUrl = generateTargetUrl(targetUrl, request)
-			isDebug = getIsDebug(queueitToken, secretKey)
+		def self._cancelRequestByLocalConfig(targetUrl, queueitToken, cancelConfig, customerId, secretKey, request, debugEntries, isDebug)
+			targetUrl = generateTargetUrl(targetUrl, request)				
+
 			if(isDebug)
+				debugEntries["SdkVersion"] = UserInQueueService::SDK_VERSION
+				debugEntries["Runtime"] = getRuntime()
 				debugEntries["TargetUrl"] = targetUrl
 				debugEntries["QueueitToken"] = queueitToken
 				debugEntries["OriginalUrl"] = getRealOriginalUrl(request)
@@ -204,40 +188,64 @@ module QueueIt
 
 		def self.resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, request)
 			debugEntries = Hash.new
+			connectorDiagnostics = ConnectorDiagnostics.verify(customerId, secretKey, queueitToken)
+			
+			if(connectorDiagnostics.hasError)
+				return connectorDiagnostics.validationResult
+			end
 			begin
 				targetUrl = generateTargetUrl(targetUrl, request)
-				return _resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, request, debugEntries)
+				return _resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, request, debugEntries, connectorDiagnostics.isEnabled)
+			rescue Exception => e
+				if(connectorDiagnostics.isEnabled)
+					debugEntries["Exception"] = e.message
+				end
+				raise e
 			ensure
 				setDebugCookie(debugEntries, request.cookie_jar)
 			end
 		end
 
-		def self.validateRequestByIntegrationConfig(currentUrlWithoutQueueITToken, queueitToken, integrationsConfigString, customerId, secretKey, request)
-			if(Utils.isNilOrEmpty(currentUrlWithoutQueueITToken))
-				raise KnownUserError, "currentUrlWithoutQueueITToken can not be nil or empty."
+		def self.validateRequestByIntegrationConfig(currentUrlWithoutQueueITToken, queueitToken, integrationConfigJson, customerId, secretKey, request)
+			debugEntries = Hash.new			
+			customerIntegration = Hash.new
+			connectorDiagnostics = ConnectorDiagnostics.verify(customerId, secretKey, queueitToken)
+			
+			if(connectorDiagnostics.hasError)
+				return connectorDiagnostics.validationResult
 			end
-
-			if(Utils.isNilOrEmpty(integrationsConfigString))
-				raise KnownUserError, "integrationsConfigString can not be nil or empty."
-			end
-
-			debugEntries = Hash.new	
 			begin
-				customerIntegration = JSON.parse(integrationsConfigString)
-								
-				isDebug = getIsDebug(queueitToken, secretKey)
-				if(isDebug)
-					debugEntries["ConfigVersion"] = customerIntegration["Version"]
+				if(connectorDiagnostics.isEnabled)
+					debugEntries["SdkVersion"] = UserInQueueService::SDK_VERSION
+					debugEntries["Runtime"] = getRuntime()				
 					debugEntries["PureUrl"] = currentUrlWithoutQueueITToken
 					debugEntries["QueueitToken"] = queueitToken
 					debugEntries["OriginalUrl"] = getRealOriginalUrl(request)
 					logMoreRequestDetails(debugEntries, request)
 				end
-			
+
+				customerIntegration = JSON.parse(integrationConfigJson)
+				
+				if(connectorDiagnostics.isEnabled)
+					if(customerIntegration.length != 0 and customerIntegration["Version"] != nil)
+						debugEntries["ConfigVersion"] = customerIntegration["Version"]
+					else
+						debugEntries["ConfigVersion"] = "NULL"
+					end
+				end
+
+				if(Utils.isNilOrEmpty(currentUrlWithoutQueueITToken))
+					raise KnownUserError, "currentUrlWithoutQueueITToken can not be nil or empty."
+				end
+
+				if(customerIntegration.length == 0 || customerIntegration["Version"] == nil)
+					raise KnownUserError, "integrationConfigJson is not valid json."
+				end
+
 				integrationEvaluator = IntegrationEvaluator.new
 				matchedConfig = integrationEvaluator.getMatchedIntegrationConfig(customerIntegration, currentUrlWithoutQueueITToken, request)
 
-				if(isDebug)
+				if(connectorDiagnostics.isEnabled)
 					if(matchedConfig == nil)
 						debugEntries["MatchedConfig"] = "NULL"
 					else
@@ -246,33 +254,37 @@ module QueueIt
 				end
 
 				if(matchedConfig == nil)
-					return RequestValidationResult.new(nil, nil, nil, nil, nil)
+					return RequestValidationResult.new(nil, nil, nil, nil, nil, nil)
 				end
 			
 				# unspecified or 'Queue' specified
 				if(!matchedConfig.key?("ActionType") || Utils.isNilOrEmpty(matchedConfig["ActionType"]) || matchedConfig["ActionType"].eql?(ActionTypes::QUEUE))
-					return handleQueueAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, customerId, secretKey, matchedConfig, request, debugEntries)
+					return handleQueueAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, 
+								customerId, secretKey, matchedConfig, request, debugEntries, connectorDiagnostics.isEnabled)
 				
 				elsif(matchedConfig["ActionType"].eql?(ActionTypes::CANCEL))
-					return handleCancelAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, customerId, secretKey, matchedConfig, request, debugEntries)
+					return handleCancelAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, 
+								customerId, secretKey, matchedConfig, request, debugEntries, connectorDiagnostics.isEnabled)
 					
 				# for all unknown types default to 'Ignore'
 				else
 					userInQueueService = getUserInQueueService(request.cookie_jar)
-					result = userInQueueService.getIgnoreActionResult()
+					result = userInQueueService.getIgnoreActionResult(matchedConfig["Name"])
 					result.isAjaxResult = isQueueAjaxCall(request)
 					
 					return result
 				end
-
-			rescue StandardError => stdErr
-				raise KnownUserError, "integrationConfiguration text was not valid: " + stdErr.message
+			rescue Exception => e
+				if(connectorDiagnostics.isEnabled)
+					debugEntries["Exception"] = e.message
+				end
+				raise e
 			ensure
 				setDebugCookie(debugEntries, request.cookie_jar)
 			end
 		end
 
-		def self.handleQueueAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, customerId, secretKey, matchedConfig, request, debugEntries)
+		def self.handleQueueAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, customerId, secretKey, matchedConfig, request, debugEntries, isDebug)
 			queueConfig = QueueEventConfig.new
 			queueConfig.eventId = matchedConfig["EventId"]
 			queueConfig.queueDomain = matchedConfig["QueueDomain"]
@@ -282,7 +294,8 @@ module QueueIt
 			queueConfig.extendCookieValidity = matchedConfig["ExtendCookieValidity"]
 			queueConfig.cookieValidityMinute = matchedConfig["CookieValidityMinute"]
 			queueConfig.version = customerIntegration["Version"]
-			
+			queueConfig.actionName = matchedConfig["Name"]
+
 			case matchedConfig["RedirectLogic"]
 				when "ForcedTargetUrl"
 					targetUrl = matchedConfig["ForcedTargetUrl"]					
@@ -292,23 +305,34 @@ module QueueIt
 					targetUrl = generateTargetUrl(currentUrlWithoutQueueITToken, request)
 			end
 
-			return _resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, request, debugEntries)		
+			return _resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, request, debugEntries, isDebug)		
 		end
 
-		def self.handleCancelAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, customerId, secretKey, matchedConfig, request, debugEntries)
+		def self.handleCancelAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, customerId, secretKey, matchedConfig, request, debugEntries, isDebug)
 			cancelConfig = CancelEventConfig.new
 			cancelConfig.eventId = matchedConfig["EventId"]
 			cancelConfig.queueDomain = matchedConfig["QueueDomain"]
 			cancelConfig.cookieDomain = matchedConfig["CookieDomain"]
 			cancelConfig.version = customerIntegration["Version"]
-            
-			return _cancelRequestByLocalConfig(currentUrlWithoutQueueITToken, queueitToken, cancelConfig, customerId, secretKey, request, debugEntries)
+			cancelConfig.actionName = matchedConfig["Name"]
+			
+			return _cancelRequestByLocalConfig(currentUrlWithoutQueueITToken, queueitToken, cancelConfig, customerId, secretKey, request, debugEntries, isDebug)
 		end
 
 		def self.cancelRequestByLocalConfig(targetUrl, queueitToken, cancelConfig, customerId, secretKey, request)
 			debugEntries = Hash.new
+			connectorDiagnostics = ConnectorDiagnostics.verify(customerId, secretKey, queueitToken)
+			
+			if(connectorDiagnostics.hasError)
+				return connectorDiagnostics.validationResult
+			end
 			begin
-				return _cancelRequestByLocalConfig(targetUrl, queueitToken, cancelConfig, customerId, secretKey, request, debugEntries)
+				return _cancelRequestByLocalConfig(targetUrl, queueitToken, cancelConfig, customerId, secretKey, request, debugEntries, connectorDiagnostics.isEnabled)
+			rescue Exception => e
+				if(connectorDiagnostics.isEnabled)
+					debugEntries["Exception"] = e.message
+				end
+				raise e
 			ensure
 				setDebugCookie(debugEntries, request.cookie_jar)
 			end
@@ -318,6 +342,10 @@ module QueueIt
 			# RoR could modify request.original_url if request contains x-forwarded-host/proto http headers.  
 			# Therefore we need this method to be able to access the 'real' original url.
 			return request.env["rack.url_scheme"] + "://" + request.env["HTTP_HOST"] + request.original_fullpath
+		end
+
+		def self.getRuntime()
+			return RUBY_VERSION.to_s
 		end
 	end
 
