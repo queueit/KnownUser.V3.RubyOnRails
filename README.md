@@ -1,4 +1,5 @@
->You can find the latest released version [here](https://github.com/queueit/KnownUser.V3.RubyOnRails/releases/latest).
+>You can find the latest released version [here](https://github.com/queueit/KnownUser.V3.RubyOnRails/releases/latest) and 
+>[RubyGems](https://rubygems.org/gems/queueit_knownuserv3)
 
 # KnownUser.V3.RubyOnRails
 The Queue-it Security Framework is used to ensure that end users cannot bypass the queue by adding a server-side integration to your server. It supports ruby > 1.9.3 and rails > 3.2 .
