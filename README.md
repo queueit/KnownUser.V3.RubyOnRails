@@ -87,7 +87,7 @@ class ResourceController < ApplicationController
 
       if(validationResult.doRedirect)      
         #Adding no cache headers to prevent browsers to cache requests
-        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "Fri, 01 Jan 1990 00:00:00 GMT"
         #end
