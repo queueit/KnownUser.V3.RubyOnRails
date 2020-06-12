@@ -3,7 +3,7 @@ require 'cgi'
 
 module QueueIt
 	class UserInQueueService
-		SDK_VERSION_NO = "3.6.0"
+		SDK_VERSION_NO = "3.6.1"
 		SDK_VERSION = "v3-ruby-" + SDK_VERSION_NO
     
 		def initialize(userInQueueStateRepository)
@@ -27,11 +27,27 @@ module QueueIt
 
 			queueParams = QueueUrlParams::extractQueueParams(queueitToken)
 
-			if(!queueParams.nil?) 
-				return getQueueITTokenValidationResult(targetUrl, config, queueParams, customerId, secretKey)
+			requestValidationResult = nil
+            isTokenValid = false
+
+			if (!queueParams.nil?) 
+				tokenValidationResult = validateToken(config, queueParams, secretKey)
+				isTokenValid = tokenValidationResult.isValid
+
+				if (isTokenValid)
+					requestValidationResult = getValidTokenResult(config, queueParams, secretKey)
+				else
+					requestValidationResult = getErrorResult(customerId, targetUrl, config, queueParams, tokenValidationResult.errorCode)
+				end
 			else 
-				return cancelQueueCookieReturnQueueResult(targetUrl, config, customerId)
+				requestValidationResult = getQueueResult(targetUrl, config, customerId)
+            end
+            
+			if (state.isFound && !isTokenValid)
+				@userInQueueStateRepository.cancelQueueCookie(config.eventId, config.cookieDomain);
 			end
+            
+            return requestValidationResult;
 		end
 
 		def validateCancelRequest(targetUrl, cancelConfig, customerId, secretKey)
@@ -49,18 +65,7 @@ module QueueIt
 			end
 		end 
 
-		def getQueueITTokenValidationResult(targetUrl, config, queueParams,customerId, secretKey) 
-			calculatedHash = OpenSSL::HMAC.hexdigest('sha256', secretKey, queueParams.queueITTokenWithoutHash) 
-			if (calculatedHash.upcase() != queueParams.hashCode.upcase()) 
-				return cancelQueueCookieReturnErrorResult(customerId, targetUrl, config, queueParams, "hash")
-			end
-			if (queueParams.eventId.upcase() != config.eventId.upcase()) 
-				return cancelQueueCookieReturnErrorResult(customerId, targetUrl, config, queueParams, "eventid")
-			end
-			if (queueParams.timeStamp < Time.now.getutc.tv_sec) 
-				return cancelQueueCookieReturnErrorResult(customerId, targetUrl, config, queueParams, "timestamp")
-			end
-
+		def getValidTokenResult(config, queueParams, secretKey) 
 			@userInQueueStateRepository.store(
 				config.eventId,
 				queueParams.queueId,
@@ -68,12 +73,11 @@ module QueueIt
 				!Utils::isNilOrEmpty(config.cookieDomain) ? config.cookieDomain : '',
 				queueParams.redirectType,
 				secretKey)
+
 			return RequestValidationResult.new(ActionTypes::QUEUE, config.eventId, queueParams.queueId, nil, queueParams.redirectType, config.actionName)
 		end
 
-		def cancelQueueCookieReturnErrorResult(customerId, targetUrl, config, qParams, errorCode) 
-			@userInQueueStateRepository.cancelQueueCookie(config.eventId, config.cookieDomain)
-
+		def getErrorResult(customerId, targetUrl, config, qParams, errorCode) 
 			query = getQueryString(customerId, config.eventId, config.version, config.actionName, config.culture, config.layoutName) +
 				"&queueittoken=" + qParams.queueITToken +
 				"&ts=" + Time.now.getutc.tv_sec.to_s +
@@ -84,9 +88,7 @@ module QueueIt
 			return RequestValidationResult.new(ActionTypes::QUEUE, config.eventId, nil, redirectUrl, nil, config.actionName)        
 		end
 
-		def cancelQueueCookieReturnQueueResult(targetUrl, config, customerId) 
-			@userInQueueStateRepository.cancelQueueCookie(config.eventId, config.cookieDomain)
-
+		def getQueueResult(targetUrl, config, customerId) 
 			query = getQueryString(customerId, config.eventId, config.version, config.actionName, config.culture, config.layoutName) + 
 							(!Utils::isNilOrEmpty(targetUrl) ? "&t=" + Utils.urlEncode( targetUrl) : "")		
 
@@ -125,6 +127,31 @@ module QueueIt
 
 		def getIgnoreActionResult(actionName)
 			return RequestValidationResult.new(ActionTypes::IGNORE, nil, nil, nil, nil, actionName)
+		end
+
+		def validateToken(config, queueParams, secretKey)
+			calculatedHash = OpenSSL::HMAC.hexdigest('sha256', secretKey, queueParams.queueITTokenWithoutHash) 
+			if (calculatedHash.upcase() != queueParams.hashCode.upcase()) 
+				return TokenValidationResult.new(false, "hash")
+			end
+			if (queueParams.eventId.upcase() != config.eventId.upcase()) 
+				return TokenValidationResult.new(false, "eventid")
+			end
+			if (queueParams.timeStamp < Time.now.getutc.tv_sec) 
+				return TokenValidationResult.new(false, "timestamp")
+			end
+
+			return TokenValidationResult.new(true, nil)
+		end
+
+		class TokenValidationResult
+			attr_reader :isValid
+			attr_reader :errorCode
+
+			def initialize(isValid, errorCode)
+				@isValid = isValid
+				@errorCode = errorCode
+			end
 		end
 	end
 end

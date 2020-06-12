@@ -305,5 +305,17 @@ module QueueIt
 			assert(state.queueId == queueId)
 			assert(state.redirectType == "idle")
 		end
+
+		def test_getState_noCookie()
+			eventId = "event1"
+			secretKey = "4e1deweb821-a82ew5-49da-acdqq0-5d3476f2068db"
+
+			cookieManager = CookieManagerMockClass.new()
+			testObject = UserInQueueStateCookieRepository.new(cookieManager)
+			state = testObject.getState(eventId, 10, secretKey, true)
+
+			assert(!state.isFound)
+			assert(!state.isValid)		
+		end
 	end
 end

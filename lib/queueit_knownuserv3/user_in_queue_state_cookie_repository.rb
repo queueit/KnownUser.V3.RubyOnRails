@@ -143,35 +143,42 @@ module QueueIt
 		end
 
 		def getState(eventId, cookieValidityMinutes, secretKey, validateTime) 
-			cookieKey = self.class.getCookieKey(eventId)
-			if (@cookieManager.getCookie(cookieKey).nil?) 
-				return StateInfo.new(false, nil, nil, nil)
-			end
-			cookieNameValueMap = getCookieNameValueMap(@cookieManager.getCookie(cookieKey))
-			if (!isCookieValid(secretKey, cookieNameValueMap, eventId, cookieValidityMinutes, validateTime))
-				return StateInfo.new(false, nil, nil, nil)
-			end
+			begin
+				cookieKey = self.class.getCookieKey(eventId)
+				if (@cookieManager.getCookie(cookieKey).nil?) 
+					return StateInfo.new(false, false, nil, nil, nil)
+				end
+				cookieNameValueMap = getCookieNameValueMap(@cookieManager.getCookie(cookieKey))
+				if (!isCookieValid(secretKey, cookieNameValueMap, eventId, cookieValidityMinutes, validateTime))
+					return StateInfo.new(true, false, nil, nil, nil)
+				end
 
-			fixedCookieValidityMinutes = nil
-			if (cookieNameValueMap.key?("FixedValidityMins")) 
-				fixedCookieValidityMinutes = cookieNameValueMap["FixedValidityMins"].to_i
-			end
+				fixedCookieValidityMinutes = nil
+				if (cookieNameValueMap.key?("FixedValidityMins")) 
+					fixedCookieValidityMinutes = cookieNameValueMap["FixedValidityMins"].to_i
+				end
 
-			return StateInfo.new(
-				true, 
-				cookieNameValueMap["QueueId"], 
-				fixedCookieValidityMinutes,
-				cookieNameValueMap["RedirectType"])
+				return StateInfo.new(
+					true,
+					true, 
+					cookieNameValueMap["QueueId"], 
+					fixedCookieValidityMinutes,
+					cookieNameValueMap["RedirectType"])
+			rescue
+				return StateInfo.new(true, false, nil, nil, nil)
+			end
 		end
 	end
 
 	class StateInfo 
+		attr_reader :isFound
 		attr_reader :isValid
 		attr_reader :queueId
 		attr_reader :fixedCookieValidityMinutes
 		attr_reader :redirectType
 
-		def initialize(isValid, queueId, fixedCookieValidityMinutes, redirectType) 
+		def initialize(isFound, isValid, queueId, fixedCookieValidityMinutes, redirectType) 
+			@isFound = isFound
 			@isValid = isValid
 			@queueId = queueId
 			@fixedCookieValidityMinutes = fixedCookieValidityMinutes
