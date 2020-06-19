@@ -162,7 +162,7 @@ class ResourceController < ApplicationController
       # eventConfig.cookieDomain = ".my-shop.com" # Optional - Domain name where the Queue-it session cookie should be saved
       eventConfig.cookieValidityMinute = 15 # Validity of the Queue-it session cookie should be positive number.
       eventConfig.extendCookieValidity = true # Should the Queue-it session cookie validity time be extended each time the validation runs?
-      # eventConfig.culture = "da-DK" # Culture of the queue layout in the format specified here: https:#msdn.microsoft.com/en-us/library/ee825488(v=cs.20).aspx. If unspecified then settings from Event will be used.
+      # eventConfig.culture = "da-DK" # Optional - Culture of the queue layout in the format specified here: https:#msdn.microsoft.com/en-us/library/ee825488(v=cs.20).aspx. If unspecified then settings from Event will be used.
       # eventConfig.layoutName = "NameOfYourCustomLayout" # Optional - Name of the queue layout. If unspecified then settings from Event will be used.
       
       requestUrl = request.original_url
