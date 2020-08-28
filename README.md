@@ -101,7 +101,7 @@ class ResourceController < ApplicationController
         end        
       else
         # Request can continue, we remove queueittoken from url to avoid sharing of user specific token	
-	if(requestUrl != requestUrlWithoutToken && !validationResult.actionType.nil? && !validationResult.actionType.empty?)
+	if(requestUrl != requestUrlWithoutToken && validationResult.actionType == "Queue")	
           redirect_to requestUrlWithoutToken
 	end
       end
@@ -195,7 +195,7 @@ class ResourceController < ApplicationController
       	pattern = Regexp.new("([\\?&])(" + QueueIt::KnownUser::QUEUEIT_TOKEN_KEY + "=[^&]*)", Regexp::IGNORECASE)
       	requestUrlWithoutToken = requestUrl.gsub(pattern, '')
       	
-      	if(requestUrl != requestUrlWithoutToken)
+      	if(requestUrl != requestUrlWithoutToken && validationResult.actionType == "Queue")
       	    redirect_to requestUrlWithoutToken
       	end
       end
