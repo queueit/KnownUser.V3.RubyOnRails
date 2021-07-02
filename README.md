@@ -1,56 +1,22 @@
->You can find the latest released version [here](https://github.com/queueit/KnownUser.V3.RubyOnRails/releases/latest) and 
->[RubyGems](https://rubygems.org/gems/queueit_knownuserv3)
-
 # KnownUser.V3.RubyOnRails
-The Queue-it Security Framework is used to ensure that end users cannot bypass the queue by adding a server-side integration to your server. It supports ruby > 1.9.3 and rails > 3.2 .
+Before getting started please read the [documentation](https://github.com/queueit/Documentation/tree/main/serverside-connectors) to get acquainted with server-side connectors.
 
-## Introduction
-When a user is redirected back from the queue to your website, the queue engine can attache a query string parameter (`queueittoken`) containing some information about the user. 
-The most important fields of the `queueittoken` are:
+This connector supports Ruby v.1.9.3+ and Rails v.3.2+.
 
- - q - the users unique queue identifier
- - ts - a timestamp of how long this redirect is valid
- - h - a hash of the token
+## Installation
+Queue-it KnownUser V3 is distributed as a gem, which is how it should be used in your app.
 
+Include the gem in your Gemfile:
 
-The high level logic is as follows:
+```ruby
+gem "queueit_knownuserv3"
+```
 
-![The KnownUser validation flow](https://github.com/queueit/KnownUser.V3.RubyOnRails/blob/master/Documentation/KnownUserFlow.png)
-
- 1. User requests a page on your server
- 2. The validation method sees that the has no Queue-it session cookie and no `queueittoken` and sends him to the correct queue based on the configuration
- 3. User waits in the queue
- 4. User is redirected back to your website, now with a `queueittoken`
- 5. The validation method validates the `queueittoken` and creates a Queue-it session cookie
- 6. The user browses to a new page and the Queue-it session cookie will let him go there without queuing again
-
-## How to validate a user
-To validate that the current user is allowed to enter your website (has been through the queue) these steps are needed:
-
- 1. Providing the queue configuration to the KnownUser validation
- 2. Validate the `queueittoken` and store a session cookie
-
-
-### 1. Providing the queue configuration
-The recommended way is to use the Go Queue-it self-service portal to setup the configuration. 
-The configuration specifies a set of Triggers and Actions. A Trigger is an expression matching one, more or all URLs on your website. 
-When a user enter your website and the URL matches a Trigger-expression the corresponding Action will be triggered. 
-The Action specifies which queue the users should be send to. 
-In this way you can specify which queue(s) should protect which page(s) on the fly without changing the server-side integration.
-
-This configuration can then be downloaded to your application server. 
-Read more about how *[here](https://github.com/queueit/KnownUser.V3.RubyOnRails/tree/master/Documentation)*.
-
-### 2. Validate the `queueittoken` and store a session cookie
-To validate that the user has been through the queue, use the `QueueIT::KnownUser.validateRequestByIntegrationConfig` method. 
-This call will validate the timestamp and hash and if valid create a "QueueITAccepted-SDFrts345E-V3_[EventId]" cookie with a TTL as specified in the configuration.
-If the timestamp or hash is invalid, the user is send back to the queue.
+You can find the latest released version [here](https://github.com/queueit/KnownUser.V3.RubyOnRails/releases/latest) and distributed 
+gem [here](https://rubygems.org/gems/queueit_knownuserv3).
 
 
 ## Implementation
-The KnownUser validation must be done on *all requests except requests for static and cached pages, resources like images, css files and ...*. 
-So, if you add the KnownUser validation logic to a central place, then be sure that the Triggers only fire on page requests (including ajax requests) and not on e.g. image.
-
 If we have the `integrationconfig.json` copied in the rails app folder then 
 the following example of a controller is all that is needed to validate that a user has been through the queue:
 
@@ -115,36 +81,10 @@ class ResourceController < ApplicationController
   end
 end
 ```
-### Protecting ajax calls
-If you need to protect AJAX calls beside page loads you need to add the below JavaScript tags to your pages:
-```
-<script type="text/javascript" src="//static.queue-it.net/script/queueclient.min.js"></script>
-<script
- data-queueit-intercept-domain="{YOUR_CURRENT_DOMAIN}"
-   data-queueit-intercept="true"
-  data-queueit-c="{YOUR_CUSTOMER_ID}"
-  type="text/javascript"
-  src="//static.queue-it.net/script/queueconfigloader.min.js">
-</script>
-```
 
-## Installation
-Queue-it KnownUser V3 is distributed as a gem, which is how it should be used in your app.
 
-Include the gem in your Gemfile:
-
-```ruby
-gem "queueit_knownuserv3"
-```
-
-## Alternative Implementation
-
-### Queue configuration
-If your application server (maybe due to security reasons) is not allowed to do external GET requests, then you have three options:
-
-1. Manually download the configuration file from Queue-it Go self-service portal, save it on your application server and load it from local disk
-2. Use an internal gateway server to download the configuration file and save to application server
-3. Specify the configuration in code without using the Trigger/Action paradigm. In this case it is important *only to queue-up page requests* and not requests for resources. 
+## Implementation using inline queue configuration
+Specify the configuration in code without using the Trigger/Action paradigm. In this case it is important *only to queue-up page requests* and not requests for resources. 
 This can be done by adding custom filtering logic before caling the `QueueIt::KnownUser.resolveQueueRequestByLocalConfig` method. 
 
 The following is an example of how to specify the configuration in code:
