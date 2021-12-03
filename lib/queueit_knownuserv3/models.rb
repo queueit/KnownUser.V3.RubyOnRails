@@ -19,30 +19,6 @@ module QueueIt
 		end
 	end
 
-	class CancelEventConfig
-		attr_accessor :eventId	
-		attr_accessor :queueDomain
-		attr_accessor :cookieDomain
-		attr_accessor :version
-		attr_accessor :actionName
-
-		def initialize
-			@eventId = nil
-			@queueDomain = nil
-			@cookieDomain = nil
-			@version = nil
-			@actionName = "unspecified"
-		end
-
-		def toString
-			return "EventId:" + Utils.toString(eventId) + 
-				   "&Version:" + Utils.toString(version) +
-				   "&QueueDomain:" + Utils.toString(queueDomain) + 
-				   "&CookieDomain:" + Utils.toString(cookieDomain) +
-				   "&ActionName:" + Utils.toString(actionName)
-		end
-	end
-
 	class QueueEventConfig
 		attr_accessor :eventId	
 		attr_accessor :layoutName
@@ -51,6 +27,8 @@ module QueueIt
 		attr_accessor :extendCookieValidity
 		attr_accessor :cookieValidityMinute
 		attr_accessor :cookieDomain
+		attr_accessor :isCookieHttpOnly
+		attr_accessor :isCookieSecure
 		attr_accessor :version
 		attr_accessor :actionName
 
@@ -62,6 +40,8 @@ module QueueIt
 			@extendCookieValidity = nil
 			@cookieValidityMinute = nil
 			@cookieDomain = nil
+			@isCookieHttpOnly = false
+			@isCookieSecure = false
 			@version = nil
 			@actionName = "unspecified"
 		end
@@ -71,10 +51,42 @@ module QueueIt
 				   "&Version:" + Utils.toString(version) +
 				   "&QueueDomain:" + Utils.toString(queueDomain) + 
 				   "&CookieDomain:" + Utils.toString(cookieDomain) + 
+				   "&IsCookieHttpOnly:" + Utils.toString(isCookieHttpOnly) + 
+				   "&IsCookieSecure:" + Utils.toString(isCookieSecure) + 
 				   "&ExtendCookieValidity:" + Utils.toString(extendCookieValidity) +
 				   "&CookieValidityMinute:" + Utils.toString(cookieValidityMinute) + 
 				   "&LayoutName:" + Utils.toString(layoutName) + 
 				   "&Culture:" + Utils.toString(culture) +
+				   "&ActionName:" + Utils.toString(actionName)
+		end
+	end
+
+	class CancelEventConfig
+		attr_accessor :eventId
+		attr_accessor :queueDomain
+		attr_accessor :cookieDomain
+		attr_accessor :isCookieHttpOnly
+		attr_accessor :isCookieSecure
+		attr_accessor :version
+		attr_accessor :actionName
+
+		def initialize
+			@eventId = nil
+			@queueDomain = nil
+			@cookieDomain = nil
+			@isCookieHttpOnly = false
+			@isCookieSecure = false
+			@version = nil
+			@actionName = "unspecified"
+		end
+
+		def toString
+			return "EventId:" + Utils.toString(eventId) + 
+				   "&Version:" + Utils.toString(version) +
+				   "&QueueDomain:" + Utils.toString(queueDomain) + 
+				   "&CookieDomain:" + Utils.toString(cookieDomain) +
+				   "&IsCookieHttpOnly:" + Utils.toString(isCookieHttpOnly) + 
+				   "&IsCookieSecure:" + Utils.toString(isCookieSecure) + 
 				   "&ActionName:" + Utils.toString(actionName)
 		end
 	end

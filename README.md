@@ -24,11 +24,11 @@ the following example of a controller is all that is needed to validate that a u
 class ResourceController < ApplicationController
   def index
     begin
-	
+
       configJson = File.read('integrationconfig.json')
       customerId = "" # Your Queue-it customer ID
       secretKey = "" # Your 72 char secret key as specified in Go Queue-it self-service platform
-		
+
       requestUrl = request.original_url
       pattern = Regexp.new("([\\?&])(" + QueueIt::KnownUser::QUEUEIT_TOKEN_KEY + "=[^&]*)", Regexp::IGNORECASE)
       requestUrlWithoutToken = requestUrl.gsub(pattern, '')
@@ -39,17 +39,19 @@ class ResourceController < ApplicationController
       #requestUriNoToken = URI.parse(requestUrlWithoutToken)
       #requestUriNoToken.host = "INSERT-REPLACEMENT-HOST-HERE"
       #requestUrlWithoutToken = requestUriNoToken.to_s
-			
+
       queueitToken = request.query_parameters[QueueIt::KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
+
+      # Initialize the SDK with the rails http context (must be done before calling validateRequestByIntegrationConfig)
+      QueueIt::HttpContextProvider::setHttpContext(QueueIt::RailsHttpContext.new(request))
 
       # Verify if the user has been through the queue
       validationResult = QueueIt::KnownUser.validateRequestByIntegrationConfig(
-	                   requestUrlWithoutToken,
-			   queueitToken,
-			   configJson,
-			   customerId,
-			   secretKey,			   
-			   request)
+        requestUrlWithoutToken,
+        queueitToken,
+        configJson,
+        customerId,
+        secretKey)
 
       if(validationResult.doRedirect)      
         #Adding no cache headers to prevent browsers to cache requests
@@ -57,21 +59,23 @@ class ResourceController < ApplicationController
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "Fri, 01 Jan 1990 00:00:00 GMT"
         #end
-        
+
         if(!validationResult.isAjaxResult)
-            # Send the user to the queue - either becuase hash was missing or becuase is was invalid
-            redirect_to validationResult.redirectUrl
+          # Send the user to the queue - either becuase hash was missing or becuase is was invalid
+          redirect_to validationResult.redirectUrl
         else
-            head :ok
-            response.headers[validationResult.getAjaxQueueRedirectHeaderKey()] = validationResult.getAjaxRedirectUrl()
-        end        
+          head :ok
+          ajaxQueueRedirectHeaderName = validationResult.getAjaxQueueRedirectHeaderKey()
+          response.headers[ajaxQueueRedirectHeaderName] = validationResult.getAjaxRedirectUrl()
+          response.headers["Access-Control-Expose-Headers"] = ajaxQueueRedirectHeaderName
+        end       
       else
         # Request can continue, we remove queueittoken from url to avoid sharing of user specific token	
-	if(requestUrl != requestUrlWithoutToken && validationResult.actionType == "Queue")	
+        if(requestUrl != requestUrlWithoutToken && validationResult.actionType == "Queue")	
           redirect_to requestUrlWithoutToken
-	end
+        end
       end
-    
+
     rescue StandardError => stdErr
       # There was an error validating the request
       # Use your own logging framework to log the error
@@ -93,7 +97,7 @@ The following is an example of how to specify the configuration in code:
 class ResourceController < ApplicationController	
   def index	
     begin 	  
-     
+
       customerId = "" # Your Queue-it customer ID
       secretKey = "" # Your 72 char secret key as specified in Go Queue-it self-service platform		
       eventConfig = QueueIt::QueueEventConfig.new
@@ -104,41 +108,46 @@ class ResourceController < ApplicationController
       eventConfig.extendCookieValidity = true # Should the Queue-it session cookie validity time be extended each time the validation runs?
       # eventConfig.culture = "da-DK" # Optional - Culture of the queue layout in the format specified here: https:#msdn.microsoft.com/en-us/library/ee825488(v=cs.20).aspx. If unspecified then settings from Event will be used.
       # eventConfig.layoutName = "NameOfYourCustomLayout" # Optional - Name of the queue layout. If unspecified then settings from Event will be used.
-      
+
       requestUrl = request.original_url
       queueitToken = request.query_parameters[QueueIt::KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
-      
+
+      # Initialize the SDK with the rails http context (must be done before calling validateRequestByIntegrationConfig)
+      QueueIt::HttpContextProvider::setHttpContext(QueueIt::RailsHttpContext.new(request))
+
       # Verify if the user has been through the queue
       validationResult = QueueIt::KnownUser.resolveQueueRequestByLocalConfig(
-      	                   requestUrl,
-			   queueitToken,
-			   eventConfig,
-			   customerId,
-			   secretKey,
-			   request)
-      
+        requestUrl,
+        queueitToken,
+        eventConfig,
+        customerId,
+        secretKey)
+
       if(validationResult.doRedirect)	
         #Adding no cache headers to prevent browsers to cache requests
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "Fri, 01 Jan 1990 00:00:00 GMT"
         #end
-      	 if(!validationResult.isAjaxResult)
-            # Send the user to the queue - either becuase hash was missing or becuase is was invalid
-            redirect_to validationResult.redirectUrl
+        if(!validationResult.isAjaxResult)
+          # Send the user to the queue - either becuase hash was missing or becuase is was invalid
+          redirect_to validationResult.redirectUrl
         else
-            head :ok
-            response.headers[validationResult.getAjaxQueueRedirectHeaderKey()] = validationResult.getAjaxRedirectUrl()
+          head :ok
+          ajaxQueueRedirectHeaderName = validationResult.getAjaxQueueRedirectHeaderKey()
+          response.headers[ajaxQueueRedirectHeaderName] = validationResult.getAjaxRedirectUrl()
+          response.headers["Access-Control-Expose-Headers"] = ajaxQueueRedirectHeaderName
         end
       else
-      	# Request can continue - we remove queueittoken form querystring parameter to avoid sharing of user specific token				
-      	pattern = Regexp.new("([\\?&])(" + QueueIt::KnownUser::QUEUEIT_TOKEN_KEY + "=[^&]*)", Regexp::IGNORECASE)
-      	requestUrlWithoutToken = requestUrl.gsub(pattern, '')
-      	
-      	if(requestUrl != requestUrlWithoutToken && validationResult.actionType == "Queue")
-      	    redirect_to requestUrlWithoutToken
-      	end
+        # Request can continue - we remove queueittoken form querystring parameter to avoid sharing of user specific token				
+        pattern = Regexp.new("([\\?&])(" + QueueIt::KnownUser::QUEUEIT_TOKEN_KEY + "=[^&]*)", Regexp::IGNORECASE)
+        requestUrlWithoutToken = requestUrl.gsub(pattern, '')
+
+        if(requestUrl != requestUrlWithoutToken && validationResult.actionType == "Queue")
+          redirect_to requestUrlWithoutToken
+        end
       end
+
     rescue StandardError => stdErr
       # There was an error validating the request
       # Use your own logging framework to log the error
@@ -147,4 +156,33 @@ class ResourceController < ApplicationController
     end
   end
 end
+```
+
+## Advanced Features
+### Request body trigger
+
+The connector supports triggering on request body content. An example could be a POST call with specific item ID where you want end-users to queue up for.
+For this to work, you will need to contact Queue-it support or enable request body triggers in your integration settings in your GO Queue-it platform account.
+Once enabled you will need to update your integration so request body is available for the connector.  
+You need to create a custom RailsHttpContext similar to this one (make sure to inherit from `QueueIt::RailsHttpContext`):
+
+```ruby
+class RailsHttpContextWithRequestBody < QueueIt::RailsHttpContext
+  @request
+
+  def initialize(request)
+    super
+    @request = request
+  end
+
+  def requestBodyAsString
+    return @request.raw_post
+  end
+end
+```
+
+Then, on each request, before calling the any of the SDK methods, you should initialize the SDK with your custom RailsHttpContext implementation, instead of the RailsHttpContext:
+
+```ruby
+QueueIt::HttpContextProvider::setHttpContext(RailsHttpContextWithRequestBody.new(request))
 ```

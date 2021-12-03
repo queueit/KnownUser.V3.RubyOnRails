@@ -2,8 +2,8 @@ require "test/unit"
 require_relative '../../lib/queueit_knownuserv3'
 
 module QueueIt
-	class CookieManagerMockClass 
-		attr_reader :cookieList
+	class CookieManagerMock
+		attr_accessor :cookieList
 		attr_reader :setCookieCalls
 		attr_reader :getCookieCalls
 
@@ -13,22 +13,26 @@ module QueueIt
 			@getCookieCalls = Hash.new
 		end
 
-		def setCookie(cookieName, value, expire, domain) 
+		def setCookie(cookieName, value, expire, domain, isHttpOnly, isSecure)
 			@cookieList[cookieName] = {
 				"name" => cookieName,
 				"value" => value,
 				"expiration" => expire,
-				"cookieDomain" => domain
+				"cookieDomain" => domain,
+				"isHttpOnly" => isHttpOnly,
+				"isSecure" => isSecure
 			}
 			@setCookieCalls[@setCookieCalls.length] = {
 				"name" => cookieName,
 				"value" => value,
 				"expiration" => expire,
-				"cookieDomain" => domain
+				"cookieDomain" => domain,
+				"isHttpOnly" => isHttpOnly,
+				"isSecure" => isSecure
 			}
 		end
 
-		def getCookie(cookieName) 
+		def getCookie(cookieName)
 			@getCookieCalls[@getCookieCalls.length] = cookieName
 			if(!@cookieList.key?(cookieName))
 				return nil
@@ -46,12 +50,14 @@ module QueueIt
 			eventId = "event1"
 			secretKey = "4e1deweb821-a82ew5-49da-acdqq0-5d3476f2068db"
 			cookieDomain = ".test.com"
+			isCookieHttpOnly = true
+			isCookieSecure = true
 			queueId = "queueId"
 			cookieValidity = 10
 			cookieKey = UserInQueueStateCookieRepository::getCookieKey(eventId)
-			cookieManager = CookieManagerMockClass.new()
+			cookieManager = CookieManagerMock.new()
 			testObject = UserInQueueStateCookieRepository.new(cookieManager)
-			testObject.store(eventId, queueId, nil, cookieDomain, "Queue", secretKey)
+			testObject.store(eventId, queueId, nil, cookieDomain, isCookieHttpOnly, isCookieSecure, "Queue", secretKey)
 			state = testObject.getState(eventId, cookieValidity, secretKey, true)
 			assert(state.isValid)
 			assert(state.queueId == queueId)
@@ -59,18 +65,22 @@ module QueueIt
 			assert(state.redirectType == 'Queue')
 			assert(((cookieManager.cookieList[cookieKey]["expiration"]).to_i - Time.now.getutc.to_i - 24 * 60 * 60).abs < 100)
 			assert(cookieManager.cookieList[cookieKey]["cookieDomain"] == cookieDomain)
+			assert(cookieManager.cookieList[cookieKey]["isHttpOnly"] == isCookieHttpOnly)
+			assert(cookieManager.cookieList[cookieKey]["isSecure"] == isCookieSecure)
 		end
-	    
+
 		def test_store_hasValidState_nonExtendableCookie_CookieIsSaved()
 			eventId = "event1"
 			secretKey = "4e1deweb821-a82ew5-49da-acdqq0-5d3476f2068db"
 			cookieDomain = ".test.com"
+			isCookieHttpOnly = true
+			isCookieSecure = true
 			queueId = "queueId"
 			cookieValidity = 3
 			cookieKey = UserInQueueStateCookieRepository::getCookieKey(eventId)
-			cookieManager = CookieManagerMockClass.new()
+			cookieManager = CookieManagerMock.new()
 			testObject = UserInQueueStateCookieRepository.new(cookieManager)
-			testObject.store(eventId, queueId, cookieValidity, cookieDomain, "Idle", secretKey)
+			testObject.store(eventId, queueId, cookieValidity, cookieDomain, isCookieHttpOnly, isCookieSecure, "Idle", secretKey)
 			state = testObject.getState(eventId, cookieValidity, secretKey, true)
 			assert(state.isValid)
 			assert(state.queueId == queueId)
@@ -79,19 +89,23 @@ module QueueIt
 			assert(state.fixedCookieValidityMinutes == 3)
 			oldCookieValue = cookieManager.cookieList[cookieKey]["value"]
 			assert(((cookieManager.cookieList[cookieKey]["expiration"]).to_i - Time.now.getutc.to_i - 24 * 60 * 60).abs < 100)
-			assert(cookieManager.cookieList[cookieKey]["cookieDomain"] == cookieDomain)			
+			assert(cookieManager.cookieList[cookieKey]["cookieDomain"] == cookieDomain)
+			assert(cookieManager.cookieList[cookieKey]["isHttpOnly"] == isCookieHttpOnly)
+			assert(cookieManager.cookieList[cookieKey]["isSecure"] == isCookieSecure)
 		end
-		
+
 		def test_store_hasValidState_tamperedCookie_stateIsNotValid_isCookieExtendable()
 			eventId = "event1"
 			secretKey = "4e1deweb821-a82ew5-49da-acdqq0-5d3476f2068db"
 			cookieDomain = ".test.com"
+			isCookieHttpOnly = false
+			isCookieSecure = false
 			queueId = "queueId"
 			cookieValidity = 10
 			cookieKey = UserInQueueStateCookieRepository::getCookieKey(eventId)
-			cookieManager = CookieManagerMockClass.new()
+			cookieManager = CookieManagerMock.new()
 			testObject = UserInQueueStateCookieRepository.new(cookieManager)
-			testObject.store(eventId, queueId, 3, cookieDomain, "Idle", secretKey)
+			testObject.store(eventId, queueId, 3, cookieDomain, isCookieHttpOnly, isCookieSecure, "Idle", secretKey)
 			state = testObject.getState(eventId, cookieValidity, secretKey, true)
 			assert(state.isValid)
 			oldCookieValue = cookieManager.cookieList[cookieKey]["value"]
@@ -100,18 +114,20 @@ module QueueIt
 			assert(!state2.isValid)
 			assert(!state2.isStateExtendable)
 		end
-		
+
 		def test_store_hasValidState_tamperedCookie_stateIsNotValid_eventId()
 			eventId = "event1"
 			secretKey = "4e1deweb821-a82ew5-49da-acdqq0-5d3476f2068db"
 			cookieDomain = ".test.com"
+			isCookieHttpOnly = false
+			isCookieSecure = false
 			queueId = "queueId"
 			cookieValidity = 10
 			cookieKey = UserInQueueStateCookieRepository::getCookieKey(eventId)
-			cookieManager = CookieManagerMockClass.new()
+			cookieManager = CookieManagerMock.new()
 			testObject = UserInQueueStateCookieRepository.new(cookieManager)
-			
-			testObject.store(eventId, queueId, 3, cookieDomain, "Idle", secretKey)
+
+			testObject.store(eventId, queueId, 3, cookieDomain, isCookieHttpOnly, isCookieSecure, "Idle", secretKey)
 			state = testObject.getState(eventId, cookieValidity, secretKey, true)
 			assert(state.isValid)
 
@@ -121,126 +137,153 @@ module QueueIt
 			assert(!state2.isValid)
 			assert(!state2.isStateExtendable)
 		end
-		
+
 		def	test_store_hasValidState_expiredCookie_stateIsNotValid()
 			eventId = "event1"
 			secretKey = "4e1deweb821-a82ew5-49da-acdqq0-5d3476f2068db"
 			cookieDomain = ".test.com"
+			isCookieHttpOnly = false
+			isCookieSecure = false
 			queueId = "queueId"
 			cookieValidity = -1
-			cookieManager = CookieManagerMockClass.new()
+			cookieManager = CookieManagerMock.new()
 			testObject = UserInQueueStateCookieRepository.new(cookieManager)
-			testObject.store(eventId, queueId, nil, cookieDomain, "Idle", secretKey)
+			testObject.store(eventId, queueId, nil, cookieDomain, isCookieHttpOnly, isCookieSecure, "Idle", secretKey)
 			state = testObject.getState(eventId, cookieValidity, secretKey, true)
 			assert(!state.isValid)
 		end
-		
+
 		def test_store_hasValidState_differentEventId_stateIsNotValid()
 			eventId = "event1"
 			secretKey = "4e1deweb821-a82ew5-49da-acdqq0-5d3476f2068db"
 			cookieDomain = ".test.com"
+			isCookieHttpOnly = false
+			isCookieSecure = false
 			queueId = "queueId"
 			cookieValidity = 10
-			cookieManager = CookieManagerMockClass.new()
+			cookieManager = CookieManagerMock.new()
 			testObject = UserInQueueStateCookieRepository.new(cookieManager)
-			testObject.store(eventId, queueId, nil, cookieDomain, "Queue", secretKey)
+			testObject.store(eventId, queueId, nil, cookieDomain, isCookieHttpOnly, isCookieSecure, "Queue", secretKey)
 			state = testObject.getState(eventId, cookieValidity, secretKey, true)
 			assert(state.isValid)
 			state2 = testObject.getState("event2", cookieValidity, secretKey, true)
 			assert(!state2.isValid)
 		end
-		
+
 		def test_hasValidState_noCookie_stateIsNotValid()
 			eventId = "event1"
 			secretKey = "4e1deweb821-a82ew5-49da-acdqq0-5d3476f2068db"
 			cookieDomain = ".test.com"
 			queueId = "queueId"
 			cookieValidity = 10
-			cookieManager = CookieManagerMockClass.new()
+			cookieManager = CookieManagerMock.new()
 			testObject = UserInQueueStateCookieRepository.new(cookieManager)
 			state = testObject.getState(eventId, cookieValidity, secretKey, true)
-			assert(!state.isValid)			
+			assert(!state.isValid)
 		end
-		
+
 		def test_hasValidState_invalidCookie_stateIsNotValid()
 			eventId = "event1"
 			secretKey = "4e1deweb821-a82ew5-49da-acdqq0-5d3476f2068db"
 			cookieDomain = ".test.com"
+			isCookieHttpOnly = false
+			isCookieSecure = false
 			queueId = "queueId"
 			cookieKey = UserInQueueStateCookieRepository::getCookieKey(eventId)
 			cookieValidity = 10
-			cookieManager =  CookieManagerMockClass.new()
+			cookieManager =  CookieManagerMock.new()
 			testObject = UserInQueueStateCookieRepository.new(cookieManager)
-			testObject.store(eventId, queueId, 20, cookieDomain, "Queue", secretKey)
+			testObject.store(eventId, queueId, 20, cookieDomain, isCookieHttpOnly, isCookieSecure, "Queue", secretKey)
 			state = testObject.getState(eventId, cookieValidity, secretKey, true)
 			assert(state.isValid)
 			cookieManager.cookieList[cookieKey]["value"] = "IsCookieExtendable=ooOOO&Expires=|||&QueueId=000&Hash=23232"
 			state2 = testObject.getState(eventId, cookieValidity, secretKey, true)
 			assert(!state2.isValid)
 		end
-		
+
 		def test_cancelQueueCookie()
 			eventId = "event1"
 			secretKey = "4e1deweb821-a82ew5-49da-acdqq0-5d3476f2068db"
 			cookieDomain = ".test.com"
+			isCookieHttpOnly = false
+			isCookieSecure = false
 			queueId = "queueId"
 			cookieValidity = 20
-			cookieManager = CookieManagerMockClass.new()
+			cookieManager = CookieManagerMock.new()
 			testObject = UserInQueueStateCookieRepository.new(cookieManager)
-			testObject.store(eventId, queueId, 20, cookieDomain, "Queue", secretKey)
+			testObject.store(eventId, queueId, 20, cookieDomain, isCookieHttpOnly, isCookieSecure, "Queue", secretKey)
 			state = testObject.getState(eventId, cookieValidity, secretKey, true)
 			assert(state.isValid)
-			testObject.cancelQueueCookie(eventId, cookieDomain)
+			testObject.cancelQueueCookie(eventId, cookieDomain, isCookieHttpOnly, isCookieSecure)
 			state2 = testObject.getState(eventId, cookieValidity, secretKey, true)
 			assert(!state2.isValid)
 			assert((cookieManager.setCookieCalls[1]["expiration"]).to_i == -1)
 			assert(cookieManager.setCookieCalls[1]["cookieDomain"] == cookieDomain)
 			assert(cookieManager.setCookieCalls[1]["value"].nil?)
 		end
-		
+
 		def test_extendQueueCookie_cookieExist()
 			eventId = "event1"
 			secretKey = "4e1deweb821-a82ew5-49da-acdqq0-5d3476f2068db"
 			cookieDomain = ".test.com"
+			isCookieHttpOnly = true
+			isCookieSecure = true
 			queueId = "queueId"
+
 			cookieKey = UserInQueueStateCookieRepository::getCookieKey(eventId)
-			cookieManager = CookieManagerMockClass.new()
+			cookieManager = CookieManagerMock.new()
 			testObject = UserInQueueStateCookieRepository.new(cookieManager)
-			testObject.store(eventId, queueId, nil, cookieDomain, "Queue", secretKey)
-            testObject.reissueQueueCookie(eventId, 12, cookieDomain, secretKey)
+
+			testObject.store(eventId, queueId, nil, cookieDomain, isCookieHttpOnly, isCookieSecure, "Queue", secretKey)
+            testObject.reissueQueueCookie(eventId, 12, cookieDomain, isCookieHttpOnly, isCookieSecure, secretKey)
+
 	        state = testObject.getState(eventId, 5, secretKey, true)
+
 			assert(state.isValid)
 			assert(state.queueId == queueId)
 			assert(state.isStateExtendable)
 			assert(((cookieManager.cookieList[cookieKey]["expiration"]).to_i - Time.now.getutc.to_i - 24 * 60 * 60).abs < 100)
 			assert(cookieManager.cookieList[cookieKey]["cookieDomain"] == cookieDomain)
+			assert(cookieManager.cookieList[cookieKey]["isHttpOnly"] == isCookieHttpOnly)
+			assert(cookieManager.cookieList[cookieKey]["isSecure"] == isCookieSecure)
 		end
-		
+
 		def test_extendQueueCookie_cookieDoesNotExist()
 			eventId = "event1"
 			secretKey = "4e1deweb821-a82ew5-49da-acdqq0-5d3476f2068db"
 			cookieDomain = ".test.com"
+			isCookieHttpOnly = false
+			isCookieSecure = false
 			queueId = "queueId"
-			cookieManager = CookieManagerMockClass.new()
+			cookieManager = CookieManagerMock.new()
 			testObject = UserInQueueStateCookieRepository.new(cookieManager)
-			testObject.store("event2", queueId, 20, cookieDomain, "Queue", secretKey)
-			testObject.reissueQueueCookie(eventId, 12, cookieDomain, secretKey)
+			testObject.store("event2", queueId, 20, cookieDomain, isCookieHttpOnly, isCookieSecure, "Queue", secretKey)
+			testObject.reissueQueueCookie(eventId, 12, cookieDomain, isCookieHttpOnly, isCookieSecure, secretKey)
 			assert(cookieManager.setCookieCalls.length == 1)
 		end
-		
+
 		def test_getState_validCookieFormat_extendable()
 			eventId = "event1"
 			secretKey = "4e1deweb821-a82ew5-49da-acdqq0-5d3476f2068db"
 			cookieDomain = ".test.com"
+			isCookieHttpOnly = false
+			isCookieSecure = false
 			queueId = "queueId"
 			cookieKey = UserInQueueStateCookieRepository::getCookieKey(eventId)
 			issueTime = Time.now.getutc.tv_sec.to_s
 			hash = generateHash(eventId, queueId, nil, "queue", issueTime, secretKey)
 
-			cookieManager = CookieManagerMockClass.new()
+			cookieManager = CookieManagerMock.new()
 			testObject = UserInQueueStateCookieRepository.new(cookieManager)
 
-			cookieManager.setCookie(cookieKey, "EventId="+eventId+"&QueueId="+queueId+"&RedirectType=queue&IssueTime="+issueTime+"&Hash="+hash, Time.now + (24*60*60), cookieDomain)
+			cookieManager.setCookie(
+				cookieKey,
+				"EventId="+eventId+"&QueueId="+queueId+"&RedirectType=queue&IssueTime="+issueTime+"&Hash="+hash,
+				Time.now + (24*60*60),
+				cookieDomain,
+				isCookieHttpOnly,
+				isCookieSecure)
+
 			state = testObject.getState(eventId, 10, secretKey, true)
 
 			assert(state.isStateExtendable)
@@ -248,56 +291,83 @@ module QueueIt
 			assert(state.queueId == queueId)
 			assert(state.redirectType == "queue")
 		end
-		
+
 		def test_getState_oldCookie_invalid_expiredCookie_extendable()
 			eventId = "event1"
 			secretKey = "4e1deweb821-a82ew5-49da-acdqq0-5d3476f2068db"
 			cookieDomain = ".test.com"
+			isCookieHttpOnly = false
+			isCookieSecure = false
 			queueId = "queueId"
 			cookieKey = UserInQueueStateCookieRepository::getCookieKey(eventId)
-			issueTime = (Time.now.getutc.tv_sec - (11*60)).to_s 
+			issueTime = (Time.now.getutc.tv_sec - (11*60)).to_s
 			hash = generateHash(eventId, queueId, nil, "queue", issueTime, secretKey)
 
-			cookieManager = CookieManagerMockClass.new()
+			cookieManager = CookieManagerMock.new()
 			testObject = UserInQueueStateCookieRepository.new(cookieManager)
 
-			cookieManager.setCookie(cookieKey, "EventId="+eventId+"&QueueId="+queueId+"&RedirectType=queue&IssueTime="+issueTime+"&Hash="+hash, Time.now + (24*60*60), cookieDomain)
+			cookieManager.setCookie(
+				cookieKey,
+				"EventId="+eventId+"&QueueId="+queueId+"&RedirectType=queue&IssueTime="+issueTime+"&Hash="+hash,
+				Time.now + (24*60*60),
+				cookieDomain,
+				isCookieHttpOnly,
+				isCookieSecure)
+
 			state = testObject.getState(eventId, 10, secretKey, true)
 
 			assert(!state.isValid)
 		end
-		
+
 		def test_getState_oldCookie_invalid_expiredCookie_nonExtendable()
 			eventId = "event1"
 			secretKey = "4e1deweb821-a82ew5-49da-acdqq0-5d3476f2068db"
 			cookieDomain = ".test.com"
+			isCookieHttpOnly = false
+			isCookieSecure = false
 			queueId = "queueId"
 			cookieKey = UserInQueueStateCookieRepository::getCookieKey(eventId)
-			issueTime = (Time.now.getutc.tv_sec - (4*60)).to_s 
+			issueTime = (Time.now.getutc.tv_sec - (4*60)).to_s
 			hash = generateHash(eventId, queueId, 3, "idle", issueTime, secretKey)
 
-			cookieManager = CookieManagerMockClass.new()
+			cookieManager = CookieManagerMock.new()
 			testObject = UserInQueueStateCookieRepository.new(cookieManager)
 
-			cookieManager.setCookie(cookieKey, "EventId="+eventId+"&QueueId="+queueId+"&FixedValidityMins=3&RedirectType=idle&IssueTime="+issueTime+"&Hash="+hash, Time.now + (24*60*60), cookieDomain)
+			cookieManager.setCookie(
+				cookieKey,
+				"EventId="+eventId+"&QueueId="+queueId+"&FixedValidityMins=3&RedirectType=idle&IssueTime="+issueTime+"&Hash="+hash,
+				Time.now + (24*60*60),
+				cookieDomain,
+				isCookieHttpOnly,
+				isCookieSecure)
+
 			state = testObject.getState(eventId, 10, secretKey, true)
 
 			assert(!state.isValid)
 		end
-		
+
 		def test_getState_validCookieFormat_nonExtendable()
 			eventId = "event1"
 			secretKey = "4e1deweb821-a82ew5-49da-acdqq0-5d3476f2068db"
 			cookieDomain = ".test.com"
+			isCookieHttpOnly = false
+			isCookieSecure = false
 			queueId = "queueId"
 			cookieKey = UserInQueueStateCookieRepository::getCookieKey(eventId)
-			issueTime = Time.now.getutc.tv_sec.to_s 
+			issueTime = Time.now.getutc.tv_sec.to_s
 			hash = generateHash(eventId, queueId, 3, "idle", issueTime, secretKey)
 
-			cookieManager = CookieManagerMockClass.new()
+			cookieManager = CookieManagerMock.new()
 			testObject = UserInQueueStateCookieRepository.new(cookieManager)
 
-			cookieManager.setCookie(cookieKey, "EventId="+eventId+"&QueueId="+queueId+"&FixedValidityMins=3&RedirectType=idle&IssueTime="+issueTime+"&Hash="+hash, Time.now + (24*60*60), cookieDomain)
+			cookieManager.setCookie(
+				cookieKey,
+				"EventId="+eventId+"&QueueId="+queueId+"&FixedValidityMins=3&RedirectType=idle&IssueTime="+issueTime+"&Hash="+hash,
+				Time.now + (24*60*60),
+				cookieDomain,
+				isCookieHttpOnly,
+				isCookieSecure)
+
 			state = testObject.getState(eventId, 10, secretKey, true)
 
 			assert(!state.isStateExtendable)
@@ -310,12 +380,12 @@ module QueueIt
 			eventId = "event1"
 			secretKey = "4e1deweb821-a82ew5-49da-acdqq0-5d3476f2068db"
 
-			cookieManager = CookieManagerMockClass.new()
+			cookieManager = CookieManagerMock.new()
 			testObject = UserInQueueStateCookieRepository.new(cookieManager)
 			state = testObject.getState(eventId, 10, secretKey, true)
 
 			assert(!state.isFound)
-			assert(!state.isValid)		
+			assert(!state.isValid)
 		end
 	end
 end

@@ -3,7 +3,7 @@ require 'cgi'
 
 module QueueIt
 	class UserInQueueService
-		SDK_VERSION_NO = "3.6.1"
+		SDK_VERSION_NO = "3.7.0"
 		SDK_VERSION = "v3-ruby-" + SDK_VERSION_NO
     
 		def initialize(userInQueueStateRepository)
@@ -19,6 +19,8 @@ module QueueIt
 						state.queueId,
 						nil,
 						!Utils::isNilOrEmpty(config.cookieDomain) ? config.cookieDomain : '',
+						config.isCookieHttpOnly,
+						config.isCookieSecure,
 						state.redirectType,
 						secretKey)
 				end
@@ -44,7 +46,7 @@ module QueueIt
             end
             
 			if (state.isFound && !isTokenValid)
-				@userInQueueStateRepository.cancelQueueCookie(config.eventId, config.cookieDomain);
+				@userInQueueStateRepository.cancelQueueCookie(config.eventId, config.cookieDomain, config.isCookieHttpOnly, config.isCookieSecure);
 			end
             
             return requestValidationResult;
@@ -53,12 +55,19 @@ module QueueIt
 		def validateCancelRequest(targetUrl, cancelConfig, customerId, secretKey)
 			state = @userInQueueStateRepository.getState(cancelConfig.eventId, -1, secretKey, false)
 			if (state.isValid)
-				@userInQueueStateRepository.cancelQueueCookie(cancelConfig.eventId, cancelConfig.cookieDomain)
+				@userInQueueStateRepository.cancelQueueCookie(cancelConfig.eventId, cancelConfig.cookieDomain, cancelConfig.isCookieHttpOnly, cancelConfig.isCookieSecure)
+
 				query = getQueryString(customerId, cancelConfig.eventId, cancelConfig.version, cancelConfig.actionName, nil, nil) + 
-							(!Utils::isNilOrEmpty(targetUrl) ? ("&r=" +  Utils.urlEncode(targetUrl)) : "" )						
-				uriPath = "cancel/" + customerId + "/" + cancelConfig.eventId + "/"
-				
+							(!Utils::isNilOrEmpty(targetUrl) ? ("&r=" +  Utils.urlEncode(targetUrl)) : "" )
+
+				uriPath = "cancel/" + customerId + "/" + cancelConfig.eventId
+
+				if(!Utils::isNilOrEmpty(state.queueId))
+					uriPath = uriPath + "/" + state.queueId
+				end
+
 				redirectUrl = generateRedirectUrl(cancelConfig.queueDomain, uriPath, query)
+				
 				return RequestValidationResult.new(ActionTypes::CANCEL, cancelConfig.eventId, state.queueId, redirectUrl, state.redirectType, cancelConfig.actionName)			
 			else
 				return RequestValidationResult.new(ActionTypes::CANCEL, cancelConfig.eventId, nil, nil, nil, cancelConfig.actionName)			
@@ -71,6 +80,8 @@ module QueueIt
 				queueParams.queueId,
 				queueParams.cookieValidityMinutes,				
 				!Utils::isNilOrEmpty(config.cookieDomain) ? config.cookieDomain : '',
+				config.isCookieHttpOnly,
+				config.isCookieSecure,
 				queueParams.redirectType,
 				secretKey)
 
@@ -121,8 +132,8 @@ module QueueIt
 			return "https://" + queueDomain + uriPath + "?" + query
 		end
 
-		def extendQueueCookie(eventId, cookieValidityMinutes, cookieDomain, secretKey) 
-			@userInQueueStateRepository.reissueQueueCookie(eventId, cookieValidityMinutes, cookieDomain, secretKey)
+		def extendQueueCookie(eventId, cookieValidityMinutes, cookieDomain, isCookieHttpOnly, isCookieSecure, secretKey) 
+			@userInQueueStateRepository.reissueQueueCookie(eventId, cookieValidityMinutes, cookieDomain, isCookieHttpOnly, isCookieSecure, secretKey)
 		end
 
 		def getIgnoreActionResult(actionName)

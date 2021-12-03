@@ -22,12 +22,14 @@ module QueueIt
 			}
 		end
 
-		def store(eventId, queueId, fixedCookieValidityMinutes, cookieDomain, redirectType, secretKey) 
+		def store(eventId, queueId, fixedCookieValidityMinutes, cookieDomain, isCookieHttpOnly, isCookieSecure, redirectType, secretKey) 
 			arrayFunctionCallsArgs['store'].push([
 				eventId,
 				queueId,
 				fixedCookieValidityMinutes,
 				cookieDomain,
+				isCookieHttpOnly,
+				isCookieSecure,
 				redirectType,
 				secretKey
 			])
@@ -43,8 +45,8 @@ module QueueIt
 			return arrayReturns['getState'][arrayFunctionCallsArgs['getState'].length - 1]
 		end
 
-		def cancelQueueCookie(eventId, cookieDomain) 
-			arrayFunctionCallsArgs['cancelQueueCookie'].push([eventId, cookieDomain])
+		def cancelQueueCookie(eventId, cookieDomain, isCookieHttpOnly, isCookieSecure) 
+			arrayFunctionCallsArgs['cancelQueueCookie'].push([eventId, cookieDomain, isCookieHttpOnly, isCookieSecure])
 		end
 
 		def reissueQueueCookie(eventId, cookieValidityMinutes, cookieDomain, secretKey)
@@ -107,6 +109,8 @@ module QueueIt
 			queueConfig.eventId = "e1"
 			queueConfig.queueDomain = "testDomain.com"
 			queueConfig.cookieDomain = "testDomain"
+			queueConfig.isCookieHttpOnly = false
+			queueConfig.isCookieSecure = false
 			queueConfig.cookieValidityMinute=10
 			queueConfig.extendCookieValidity=true
 			queueConfig.actionName = "QueueAction"
@@ -119,7 +123,7 @@ module QueueIt
 			assert(result.eventId == 'e1')
 			assert(result.queueId == "queueId")
 			assert(result.actionName == queueConfig.actionName)
-			assert(cookieProviderMock.expectCall('store', 1, ["e1", 'queueId', nil, 'testDomain', "disabled", "key"]))
+			assert(cookieProviderMock.expectCall('store', 1, ["e1", 'queueId', nil, 'testDomain', false, false, "disabled", "key"]))
 			assert(!cookieProviderMock.expectCallAny('cancelQueueCookie'))
 		end
 
@@ -257,6 +261,8 @@ module QueueIt
 			queueConfig.queueDomain = "testDomain.com"
 			queueConfig.cookieValidityMinute = 10
 			queueConfig.cookieDomain = "testDomain"
+			queueConfig.isCookieHttpOnly = false
+			queueConfig.isCookieSecure = false
 			queueConfig.extendCookieValidity = true
 			queueConfig.version = 11
 			queueConfig.actionName = "QueueAction"
@@ -272,7 +278,7 @@ module QueueIt
 			assert(result.queueId == 'queueId')
 			assert(result.redirectType == 'queue')
 			assert(result.actionName == queueConfig.actionName)
-			assert(cookieProviderMock.expectCall('store', 1, ["e1", 'queueId', nil, 'testDomain', 'queue', key]))
+			assert(cookieProviderMock.expectCall('store', 1, ["e1", 'queueId', nil, 'testDomain', false, false, 'queue', key]))
 			assert(!cookieProviderMock.expectCallAny('cancelQueueCookie'))
 		end
 
@@ -283,6 +289,8 @@ module QueueIt
 			queueConfig.queueDomain = "testDomain.com"
 			queueConfig.cookieValidityMinute = 30
 			queueConfig.cookieDomain = "testDomain"
+			queueConfig.isCookieHttpOnly = false
+			queueConfig.isCookieSecure = false
 			queueConfig.extendCookieValidity = true
 			queueConfig.version = 11
 			queueConfig.actionName = "QueueAction"
@@ -297,7 +305,7 @@ module QueueIt
 			assert(result.queueId == 'queueId')
 			assert(result.redirectType == 'DirectLink')
 			assert(result.actionName == queueConfig.actionName)
-			assert(cookieProviderMock.expectCall('store', 1, ["e1",'queueId', 3, 'testDomain', 'DirectLink', key]))
+			assert(cookieProviderMock.expectCall('store', 1, ["e1",'queueId', 3, 'testDomain', false, false, 'DirectLink', key]))
 			assert(!cookieProviderMock.expectCallAny('cancelQueueCookie'))
 		end
 
@@ -463,18 +471,24 @@ module QueueIt
 			cancelConfig.eventId = "e1"
 			cancelConfig.queueDomain = "testDomain.com"
 			cancelConfig.cookieDomain = "my-cookie-domain";
+			cancelConfig.isCookieHttpOnly = false
+			cancelConfig.isCookieSecure = false
 			cancelConfig.version = 10
 			cancelConfig.actionName = "Cancel Action (._~-&) !*|'\""
 			url = "http://test.test.com?b=h"
 			cookieProviderMock = UserInQueueStateRepositoryMockClass.new()
 			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(true, true, "queueId", 3, "idle"))
-			expectedUrl = "https://testDomain.com/cancel/testCustomer/e1/?c=testCustomer&e=e1&ver=" + UserInQueueService::SDK_VERSION + 
-						  "&cver=10&man=" + "Cancel%20Action%20%28._~-%26%29%20%21%2A%7C%27%22" + 
-						  "&r=" + Utils.urlEncode(url);
+			expectedUrl = "https://testDomain.com/cancel/testCustomer/e1/queueId?" +
+								"c=testCustomer" + 
+								"&e=e1" + 
+								"&ver=" + UserInQueueService::SDK_VERSION + 
+								"&cver=10" + 
+								"&man=" + "Cancel%20Action%20%28._~-%26%29%20%21%2A%7C%27%22" + 
+								"&r=" + Utils.urlEncode(url);
 			testObject = UserInQueueService.new(cookieProviderMock)
 			result = testObject.validateCancelRequest(url, cancelConfig, "testCustomer", "key")
 		
-			assert(cookieProviderMock.expectCall('cancelQueueCookie', 1,["e1", 'my-cookie-domain']))
+			assert(cookieProviderMock.expectCall('cancelQueueCookie', 1,["e1", 'my-cookie-domain', false, false]))
 			assert(result.doRedirect())
 			assert(result.queueId == "queueId")
 			assert(result.eventId == 'e1')

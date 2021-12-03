@@ -1,3 +1,4 @@
+require_relative "queueit_knownuserv3/httpcontext_provider"
 require_relative "queueit_knownuserv3/known_user"
 require_relative "queueit_knownuserv3/models"
 require_relative "queueit_knownuserv3/connector_diagnostics"
