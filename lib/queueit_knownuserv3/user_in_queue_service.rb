@@ -3,7 +3,7 @@ require 'cgi'
 
 module QueueIt
 	class UserInQueueService
-		SDK_VERSION_NO = "3.7.0"
+		SDK_VERSION_NO = "3.7.1"
 		SDK_VERSION = "v3-ruby-" + SDK_VERSION_NO
     
 		def initialize(userInQueueStateRepository)
