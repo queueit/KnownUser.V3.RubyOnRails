@@ -2,179 +2,16 @@ require 'cgi'
 require 'json'
 
 module QueueIt
-
 	class KnownUser
 		QUEUEIT_TOKEN_KEY = "queueittoken"
 		QUEUEIT_DEBUG_KEY = "queueitdebug"
 		QUEUEIT_AJAX_HEADER_KEY = "x-queueit-ajaxpageurl"
 
-		@@userInQueueService = nil
-		def self.getUserInQueueService()
-			if (@@userInQueueService == nil)
-				return UserInQueueService.new(UserInQueueStateCookieRepository.new(HttpContextProvider.httpContext.cookieManager))
-			end
-
-			return @@userInQueueService
+		def initialize(httpContext)
+			@httpContext = httpContext
 		end
-		private_class_method :getUserInQueueService
 
-		def self.isQueueAjaxCall
-			headers = HttpContextProvider.httpContext.headers
-			return headers[QUEUEIT_AJAX_HEADER_KEY] != nil
-		end
-		private_class_method :isQueueAjaxCall
-
-		def self.generateTargetUrl(originalTargetUrl)
-			unless isQueueAjaxCall()
-				return originalTargetUrl
-			end
-			headers = HttpContextProvider.httpContext.headers
-			return CGI::unescape(headers[QUEUEIT_AJAX_HEADER_KEY])
-		end
-		private_class_method :generateTargetUrl
-
-		def self.convertToInt(value)
-			begin
-				converted = Integer(value)
-			rescue
-				converted = 0
-			end
-			return converted
-		end
-		private_class_method :convertToInt
-
-		def self.logMoreRequestDetails(debugEntries)
-			httpContext = HttpContextProvider.httpContext
-			headers = httpContext.headers
-
-			debugEntries["ServerUtcTime"] = Time.now.utc.iso8601
-			debugEntries["RequestIP"] = httpContext.userHostAddress
-			debugEntries["RequestHttpHeader_Via"] = headers["via"]
-			debugEntries["RequestHttpHeader_Forwarded"] = headers["forwarded"]
-			debugEntries["RequestHttpHeader_XForwardedFor"] = headers["x-forwarded-for"]
-			debugEntries["RequestHttpHeader_XForwardedHost"] = headers["x-forwarded-host"]
-			debugEntries["RequestHttpHeader_XForwardedProto"] = headers["x-forwarded-proto"]
-		end
-		private_class_method :logMoreRequestDetails
-
-		def self.setDebugCookie(debugEntries)
-			if(debugEntries == nil || debugEntries.length == 0)
-				return
-			end
-
-			cookieManager = HttpContextProvider.httpContext.cookieManager
-			cookieValue = ''
-			debugEntries.each do |entry|
-				cookieValue << (entry[0].to_s + '=' + entry[1].to_s + '|')
-			end
-			cookieValue = cookieValue.chop # remove trailing char
-			cookieManager.setCookie(QUEUEIT_DEBUG_KEY, cookieValue, nil, nil, false, false)
-		end
-		private_class_method :setDebugCookie
-
-		def self._resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, debugEntries, isDebug)
-
-			if(isDebug)
-				debugEntries["SdkVersion"] = UserInQueueService::SDK_VERSION
-				debugEntries["Runtime"] = getRuntime()
-				debugEntries["TargetUrl"] = targetUrl
-				debugEntries["QueueitToken"] = queueitToken
-				debugEntries["OriginalUrl"] = getRealOriginalUrl()
-				if(queueConfig == nil)
-					debugEntries["QueueConfig"] = "NULL"
-				else
-					debugEntries["QueueConfig"] = queueConfig.toString()
-				end
-				logMoreRequestDetails(debugEntries)
-			end
-
-			if(Utils.isNilOrEmpty(customerId))
-				raise KnownUserError, "customerId can not be nil or empty."
-			end
-
-			if(Utils.isNilOrEmpty(secretKey))
-				raise KnownUserError, "secretKey can not be nil or empty."
-			end
-
-			if(queueConfig == nil)
-				raise KnownUserError, "queueConfig can not be nil."
-			end
-
-			if(Utils.isNilOrEmpty(queueConfig.eventId))
-				raise KnownUserError, "queueConfig.eventId can not be nil or empty."
-			end
-
-			if(Utils.isNilOrEmpty(queueConfig.queueDomain))
-				raise KnownUserError, "queueConfig.queueDomain can not be nil or empty."
-			end
-
-			minutes = convertToInt(queueConfig.cookieValidityMinute)
-			if(minutes <= 0)
-				raise KnownUserError, "queueConfig.cookieValidityMinute should be integer greater than 0."
-			end
-
-			if(![true, false].include? queueConfig.extendCookieValidity)
-				raise KnownUserError, "queueConfig.extendCookieValidity should be valid boolean."
-			end
-
-			userInQueueService = getUserInQueueService()
-			result = userInQueueService.validateQueueRequest(targetUrl, queueitToken, queueConfig, customerId, secretKey)
-			result.isAjaxResult = isQueueAjaxCall()
-
-			return result
-		end
-		private_class_method :_resolveQueueRequestByLocalConfig
-
-		def self._cancelRequestByLocalConfig(targetUrl, queueitToken, cancelConfig, customerId, secretKey, debugEntries, isDebug)
-			targetUrl = generateTargetUrl(targetUrl)
-
-			if(isDebug)
-				debugEntries["SdkVersion"] = UserInQueueService::SDK_VERSION
-				debugEntries["Runtime"] = getRuntime()
-				debugEntries["TargetUrl"] = targetUrl
-				debugEntries["QueueitToken"] = queueitToken
-				debugEntries["OriginalUrl"] = getRealOriginalUrl()
-				if(cancelConfig == nil)
-					debugEntries["CancelConfig"] = "NULL"
-				else
-					debugEntries["CancelConfig"] = cancelConfig.toString()
-				end
-				logMoreRequestDetails(debugEntries)
-			end
-
-			if(Utils.isNilOrEmpty(targetUrl))
-				raise KnownUserError, "targetUrl can not be nil or empty."
-			end
-
-			if(Utils.isNilOrEmpty(customerId))
-				raise KnownUserError, "customerId can not be nil or empty."
-			end
-
-			if(Utils.isNilOrEmpty(secretKey))
-				raise KnownUserError, "secretKey can not be nil or empty."
-			end
-
-			if(cancelConfig == nil)
-				raise KnownUserError, "cancelConfig can not be nil."
-			end
-
-			if(Utils.isNilOrEmpty(cancelConfig.eventId))
-				raise KnownUserError, "cancelConfig.eventId can not be nil or empty."
-			end
-
-			if(Utils.isNilOrEmpty(cancelConfig.queueDomain))
-				raise KnownUserError, "cancelConfig.queueDomain can not be nil or empty."
-			end
-
-			userInQueueService = getUserInQueueService()
-			result = userInQueueService.validateCancelRequest(targetUrl, cancelConfig, customerId, secretKey)
-			result.isAjaxResult = isQueueAjaxCall()
-
-			return result
-		end
-		private_class_method :_cancelRequestByLocalConfig
-
-		def self.extendQueueCookie(eventId, cookieValidityMinute, cookieDomain, isCookieHttpOnly, isCookieSecure, secretKey)
+		def extendQueueCookie(eventId, cookieValidityMinute, cookieDomain, isCookieHttpOnly, isCookieSecure, secretKey)
 			if(Utils.isNilOrEmpty(eventId))
 				raise KnownUserError, "eventId can not be nil or empty."
 			end
@@ -192,7 +29,7 @@ module QueueIt
 			userInQueueService.extendQueueCookie(eventId, cookieValidityMinute, cookieDomain, isCookieHttpOnly, isCookieSecure, secretKey)
 		end
 
-		def self.resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey)
+		def resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey)
 			debugEntries = Hash.new
 			connectorDiagnostics = ConnectorDiagnostics.verify(customerId, secretKey, queueitToken)
 
@@ -212,7 +49,7 @@ module QueueIt
 			end
 		end
 
-		def self.validateRequestByIntegrationConfig(currentUrlWithoutQueueITToken, queueitToken, integrationConfigJson, customerId, secretKey)
+		def validateRequestByIntegrationConfig(currentUrlWithoutQueueITToken, queueitToken, integrationConfigJson, customerId, secretKey)
 			debugEntries = Hash.new
 			customerIntegration = Hash.new
 			connectorDiagnostics = ConnectorDiagnostics.verify(customerId, secretKey, queueitToken)
@@ -249,7 +86,7 @@ module QueueIt
 				end
 
 				integrationEvaluator = IntegrationEvaluator.new
-				matchedConfig = integrationEvaluator.getMatchedIntegrationConfig(customerIntegration, currentUrlWithoutQueueITToken, HttpContextProvider.httpContext)
+				matchedConfig = integrationEvaluator.getMatchedIntegrationConfig(customerIntegration, currentUrlWithoutQueueITToken, @httpContext)
 
 				if(connectorDiagnostics.isEnabled)
 					if(matchedConfig == nil)
@@ -290,7 +127,7 @@ module QueueIt
 			end
 		end
 
-		def self.handleQueueAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, customerId, secretKey, matchedConfig, debugEntries, isDebug)
+		def handleQueueAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, customerId, secretKey, matchedConfig, debugEntries, isDebug)
 			queueConfig = QueueEventConfig.new
 			queueConfig.eventId = matchedConfig["EventId"]
 			queueConfig.layoutName = matchedConfig["LayoutName"]
@@ -316,7 +153,7 @@ module QueueIt
 			return _resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, debugEntries, isDebug)
 		end
 
-		def self.handleCancelAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, customerId, secretKey, matchedConfig, debugEntries, isDebug)
+		def handleCancelAction(currentUrlWithoutQueueITToken, queueitToken, customerIntegration, customerId, secretKey, matchedConfig, debugEntries, isDebug)
 			cancelConfig = CancelEventConfig.new
 			cancelConfig.eventId = matchedConfig["EventId"]
 			cancelConfig.queueDomain = matchedConfig["QueueDomain"]
@@ -329,7 +166,7 @@ module QueueIt
 			return _cancelRequestByLocalConfig(currentUrlWithoutQueueITToken, queueitToken, cancelConfig, customerId, secretKey, debugEntries, isDebug)
 		end
 
-		def self.cancelRequestByLocalConfig(targetUrl, queueitToken, cancelConfig, customerId, secretKey)
+		def cancelRequestByLocalConfig(targetUrl, queueitToken, cancelConfig, customerId, secretKey)
 			debugEntries = Hash.new
 			connectorDiagnostics = ConnectorDiagnostics.verify(customerId, secretKey, queueitToken)
 
@@ -348,15 +185,131 @@ module QueueIt
 			end
 		end
 
-		def self.getRealOriginalUrl()
-			return HttpContextProvider.httpContext.url
+		def getRealOriginalUrl
+			return @httpContext.url
 			# RoR could modify request.original_url if request contains x-forwarded-host/proto http headers.
 			# Therefore we need this method to be able to access the 'real' original url.
 			#return request.env["rack.url_scheme"] + "://" + request.env["HTTP_HOST"] + request.original_fullpath
 		end
 
-		def self.getRuntime()
-			return RUBY_VERSION.to_s
+		def getRuntime
+			RUBY_VERSION.to_s
+		end
+
+		private
+
+		def getUserInQueueService
+			@userInQueueService ||= UserInQueueService.new(UserInQueueStateCookieRepository.new(@httpContext.cookieManager))
+		end
+
+		def isQueueAjaxCall
+			headers = @httpContext.headers
+
+			headers[QUEUEIT_AJAX_HEADER_KEY] != nil
+		end
+
+		def generateTargetUrl(originalTargetUrl)
+			return originalTargetUrl unless isQueueAjaxCall
+
+			headers = @httpContext.headers
+
+			CGI.unescape(headers[QUEUEIT_AJAX_HEADER_KEY])
+		end
+
+		def convertToInt(value)
+			Integer(value) rescue 0
+		end
+
+		def logMoreRequestDetails(debugEntries)
+			headers = @httpContext.headers
+
+			debugEntries["ServerUtcTime"] = Time.now.utc.iso8601
+			debugEntries["RequestIP"] = @httpContext.userHostAddress
+			debugEntries["RequestHttpHeader_Via"] = headers["via"]
+			debugEntries["RequestHttpHeader_Forwarded"] = headers["forwarded"]
+			debugEntries["RequestHttpHeader_XForwardedFor"] = headers["x-forwarded-for"]
+			debugEntries["RequestHttpHeader_XForwardedHost"] = headers["x-forwarded-host"]
+			debugEntries["RequestHttpHeader_XForwardedProto"] = headers["x-forwarded-proto"]
+		end
+
+		def setDebugCookie(debugEntries)
+			return if debugEntries == nil || debugEntries.length == 0
+
+			cookieManager = @httpContext.cookieManager
+			cookieValue = +''
+			debugEntries.each do |entry|
+				cookieValue << (entry[0].to_s + '=' + entry[1].to_s + '|')
+			end
+			cookieValue = cookieValue.chop # remove trailing char
+			cookieManager.setCookie(QUEUEIT_DEBUG_KEY, cookieValue, nil, nil, false, false)
+		end
+
+		def _resolveQueueRequestByLocalConfig(targetUrl, queueitToken, queueConfig, customerId, secretKey, debugEntries, isDebug)
+			if(isDebug)
+				debugEntries["SdkVersion"] = UserInQueueService::SDK_VERSION
+				debugEntries["Runtime"] = getRuntime
+				debugEntries["TargetUrl"] = targetUrl
+				debugEntries["QueueitToken"] = queueitToken
+				debugEntries["OriginalUrl"] = getRealOriginalUrl
+				if queueConfig == nil
+					debugEntries["QueueConfig"] = "NULL"
+				else
+					debugEntries["QueueConfig"] = queueConfig.toString
+				end
+				logMoreRequestDetails(debugEntries)
+			end
+
+			raise KnownUserError, "customerId can not be nil or empty." if Utils.isNilOrEmpty(customerId)
+			raise KnownUserError, "secretKey can not be nil or empty." if Utils.isNilOrEmpty(secretKey)
+			raise KnownUserError, "queueConfig can not be nil." if queueConfig == nil
+			raise KnownUserError, "queueConfig.eventId can not be nil or empty." if Utils.isNilOrEmpty(queueConfig.eventId)
+			raise KnownUserError, "queueConfig.queueDomain can not be nil or empty." if Utils.isNilOrEmpty(queueConfig.queueDomain)
+
+			minutes = convertToInt(queueConfig.cookieValidityMinute)
+			if(minutes <= 0)
+				raise KnownUserError, "queueConfig.cookieValidityMinute should be integer greater than 0."
+			end
+
+			if(![true, false].include? queueConfig.extendCookieValidity)
+				raise KnownUserError, "queueConfig.extendCookieValidity should be valid boolean."
+			end
+
+			userInQueueService = getUserInQueueService
+			result = userInQueueService.validateQueueRequest(targetUrl, queueitToken, queueConfig, customerId, secretKey)
+			result.isAjaxResult = isQueueAjaxCall
+
+			return result
+		end
+
+		def _cancelRequestByLocalConfig(targetUrl, queueitToken, cancelConfig, customerId, secretKey, debugEntries, isDebug)
+			targetUrl = generateTargetUrl(targetUrl)
+
+			if isDebug
+				debugEntries["SdkVersion"] = UserInQueueService::SDK_VERSION
+				debugEntries["Runtime"] = getRuntime()
+				debugEntries["TargetUrl"] = targetUrl
+				debugEntries["QueueitToken"] = queueitToken
+				debugEntries["OriginalUrl"] = getRealOriginalUrl()
+				if(cancelConfig == nil)
+					debugEntries["CancelConfig"] = "NULL"
+				else
+					debugEntries["CancelConfig"] = cancelConfig.toString()
+				end
+				logMoreRequestDetails(debugEntries)
+			end
+
+			raise KnownUserError, "targetUrl can not be nil or empty." if Utils.isNilOrEmpty(targetUrl)
+			raise KnownUserError, "customerId can not be nil or empty." if Utils.isNilOrEmpty(customerId)
+			raise KnownUserError, "secretKey can not be nil or empty." if Utils.isNilOrEmpty(secretKey)
+			raise KnownUserError, "cancelConfig can not be nil." if cancelConfig == nil
+			raise KnownUserError, "cancelConfig.eventId can not be nil or empty." if Utils.isNilOrEmpty(cancelConfig.eventId)
+			raise KnownUserError, "cancelConfig.queueDomain can not be nil or empty." if Utils.isNilOrEmpty(cancelConfig.queueDomain)
+
+			userInQueueService = getUserInQueueService
+			result = userInQueueService.validateCancelRequest(targetUrl, cancelConfig, customerId, secretKey)
+			result.isAjaxResult = isQueueAjaxCall
+
+			result
 		end
 	end
 
@@ -381,30 +334,23 @@ module QueueIt
 			deleteCookie = Utils.isNilOrEmpty(value)
 			noExpire = Utils.isNilOrEmpty(expire)
 
-			if(noDomain)
-				if(deleteCookie)
+			if noDomain
+				if deleteCookie
 					@cookies.delete(key)
+				elsif noExpire
+					@cookies[key] = { value: value, httponly: isHttpOnly, secure: isSecure }
 				else
-					if(noExpire)
-						@cookies[key] = { :value => value, :httponly => isHttpOnly, :secure => isSecure }
-					else
-						@cookies[key] = { :value => value, :expires => expire, :httponly => isHttpOnly, :secure => isSecure }
-					end
+					@cookies[key] = { value: value, expires: expire, httponly: isHttpOnly, secure: isSecure }
 				end
 			else
-				if(deleteCookie)
-					@cookies.delete(key, :domain => domain)
+				if deleteCookie
+					@cookies.delete(key, domain: domain)
+				elsif noExpire
+					@cookies[key] = { value: value, domain: domain, httponly: isHttpOnly, secure: isSecure }
 				else
-					if(noExpire)
-						@cookies[key] = { :value => value, :domain => domain, :httponly => isHttpOnly, :secure => isSecure }
-					else
-						@cookies[key] = { :value => value, :expires => expire, :domain => domain, :httponly => isHttpOnly, :secure => isSecure }
-					end
+					@cookies[key] = { value: value, expires: expire, domain: domain, httponly: isHttpOnly, secure: isSecure }
 				end
 			end
 		end
 	end
 end
-
-
-

@@ -12,12 +12,12 @@ Include the gem in your Gemfile:
 gem "queueit_knownuserv3"
 ```
 
-You can find the latest released version [here](https://github.com/queueit/KnownUser.V3.RubyOnRails/releases/latest) and distributed 
+You can find the latest released version [here](https://github.com/queueit/KnownUser.V3.RubyOnRails/releases/latest) and distributed
 gem [here](https://rubygems.org/gems/queueit_knownuserv3).
 
 
 ## Implementation
-If we have the `integrationconfig.json` copied in the rails app folder then 
+If we have the `integrationconfig.json` copied in the rails app folder then
 the following example of a controller is all that is needed to validate that a user has been through the queue:
 
 ```ruby
@@ -33,9 +33,9 @@ class ResourceController < ApplicationController
       pattern = Regexp.new("([\\?&])(" + QueueIt::KnownUser::QUEUEIT_TOKEN_KEY + "=[^&]*)", Regexp::IGNORECASE)
       requestUrlWithoutToken = requestUrl.gsub(pattern, '')
       # The requestUrlWithoutToken is used to match Triggers and as the Target url (where to return the users to).
-      # It is therefor important that this is exactly the url of the users browsers. So, if your webserver is 
-      # behind e.g. a load balancer that modifies the host name or port, reformat requestUrlWithoutToken before proceeding.		
-      # Example of replacing host from requestUrlWithoutToken  
+      # It is therefor important that this is exactly the url of the users browsers. So, if your webserver is
+      # behind e.g. a load balancer that modifies the host name or port, reformat requestUrlWithoutToken before proceeding.
+      # Example of replacing host from requestUrlWithoutToken
       #requestUriNoToken = URI.parse(requestUrlWithoutToken)
       #requestUriNoToken.host = "INSERT-REPLACEMENT-HOST-HERE"
       #requestUrlWithoutToken = requestUriNoToken.to_s
@@ -43,17 +43,17 @@ class ResourceController < ApplicationController
       queueitToken = request.query_parameters[QueueIt::KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
 
       # Initialize the SDK with the rails http context (must be done before calling validateRequestByIntegrationConfig)
-      QueueIt::HttpContextProvider::setHttpContext(QueueIt::RailsHttpContext.new(request))
+      queue_it = QueueIt::KnownUser.new(QueueIt::RailsHttpContext.new(request))
 
       # Verify if the user has been through the queue
-      validationResult = QueueIt::KnownUser.validateRequestByIntegrationConfig(
+      validationResult = queue_it.validateRequestByIntegrationConfig(
         requestUrlWithoutToken,
         queueitToken,
         configJson,
         customerId,
         secretKey)
 
-      if(validationResult.doRedirect)      
+      if(validationResult.doRedirect)
         #Adding no cache headers to prevent browsers to cache requests
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
@@ -68,10 +68,10 @@ class ResourceController < ApplicationController
           ajaxQueueRedirectHeaderName = validationResult.getAjaxQueueRedirectHeaderKey()
           response.headers[ajaxQueueRedirectHeaderName] = validationResult.getAjaxRedirectUrl()
           response.headers["Access-Control-Expose-Headers"] = ajaxQueueRedirectHeaderName
-        end       
+        end
       else
-        # Request can continue, we remove queueittoken from url to avoid sharing of user specific token	
-        if(requestUrl != requestUrlWithoutToken && validationResult.actionType == "Queue")	
+        # Request can continue, we remove queueittoken from url to avoid sharing of user specific token
+        if(requestUrl != requestUrlWithoutToken && validationResult.actionType == "Queue")
           redirect_to requestUrlWithoutToken
         end
       end
@@ -88,18 +88,18 @@ end
 
 
 ## Implementation using inline queue configuration
-Specify the configuration in code without using the Trigger/Action paradigm. In this case it is important *only to queue-up page requests* and not requests for resources. 
-This can be done by adding custom filtering logic before caling the `QueueIt::KnownUser.resolveQueueRequestByLocalConfig` method. 
+Specify the configuration in code without using the Trigger/Action paradigm. In this case it is important *only to queue-up page requests* and not requests for resources.
+This can be done by adding custom filtering logic before caling the `QueueIt::KnownUser.resolveQueueRequestByLocalConfig` method.
 
 The following is an example of how to specify the configuration in code:
 
 ```ruby
-class ResourceController < ApplicationController	
-  def index	
-    begin 	  
+class ResourceController < ApplicationController
+  def index
+    begin
 
       customerId = "" # Your Queue-it customer ID
-      secretKey = "" # Your 72 char secret key as specified in Go Queue-it self-service platform		
+      secretKey = "" # Your 72 char secret key as specified in Go Queue-it self-service platform
       eventConfig = QueueIt::QueueEventConfig.new
       eventConfig.eventId = "" # ID of the queue to use
       eventConfig.queueDomain = "xxx.queue-it.net" # Domain name of the queue.
@@ -113,17 +113,17 @@ class ResourceController < ApplicationController
       queueitToken = request.query_parameters[QueueIt::KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
 
       # Initialize the SDK with the rails http context (must be done before calling validateRequestByIntegrationConfig)
-      QueueIt::HttpContextProvider::setHttpContext(QueueIt::RailsHttpContext.new(request))
+      qit_known_user = QueueIt::KnownUser.new(QueueIt::RailsHttpContext.new(request))
 
       # Verify if the user has been through the queue
-      validationResult = QueueIt::KnownUser.resolveQueueRequestByLocalConfig(
+      validationResult = qit_known_user.resolveQueueRequestByLocalConfig(
         requestUrl,
         queueitToken,
         eventConfig,
         customerId,
         secretKey)
 
-      if(validationResult.doRedirect)	
+      if(validationResult.doRedirect)
         #Adding no cache headers to prevent browsers to cache requests
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
@@ -139,7 +139,7 @@ class ResourceController < ApplicationController
           response.headers["Access-Control-Expose-Headers"] = ajaxQueueRedirectHeaderName
         end
       else
-        # Request can continue - we remove queueittoken form querystring parameter to avoid sharing of user specific token				
+        # Request can continue - we remove queueittoken form querystring parameter to avoid sharing of user specific token
         pattern = Regexp.new("([\\?&])(" + QueueIt::KnownUser::QUEUEIT_TOKEN_KEY + "=[^&]*)", Regexp::IGNORECASE)
         requestUrlWithoutToken = requestUrl.gsub(pattern, '')
 
@@ -163,20 +163,18 @@ end
 
 The connector supports triggering on request body content. An example could be a POST call with specific item ID where you want end-users to queue up for.
 For this to work, you will need to contact Queue-it support or enable request body triggers in your integration settings in your GO Queue-it platform account.
-Once enabled you will need to update your integration so request body is available for the connector.  
+Once enabled you will need to update your integration so request body is available for the connector.
 You need to create a custom RailsHttpContext similar to this one (make sure to inherit from `QueueIt::RailsHttpContext`):
 
 ```ruby
 class RailsHttpContextWithRequestBody < QueueIt::RailsHttpContext
-  @request
-
   def initialize(request)
     super
     @request = request
   end
 
   def requestBodyAsString
-    return @request.raw_post
+    @request.raw_post
   end
 end
 ```
