@@ -3,7 +3,7 @@ name: Release Ruby Connector
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   create-release:
