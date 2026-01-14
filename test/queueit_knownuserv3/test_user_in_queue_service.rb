@@ -82,6 +82,12 @@ module QueueIt
 		end
 	end
 
+	class UserInQueueServiceTestable < UserInQueueService
+		def validateToken(config, queueParams, secretKey)
+			return nil
+		end
+	end
+
 	class TestUserInQueueService < Test::Unit::TestCase 
 		def test_ValidateQueueRequest_ValidState_ExtendableCookie_NoCookieExtensionFromConfig_DoNotRedirectDoNotStoreCookieWithExtension
 			queueConfig =  QueueEventConfig.new
@@ -307,6 +313,29 @@ module QueueIt
 			assert(result.actionName == queueConfig.actionName)
 			assert(cookieProviderMock.expectCall('store', 1, ["e1",'queueId', 3, 'testDomain', false, false, 'DirectLink', key]))
 			assert(!cookieProviderMock.expectCallAny('cancelQueueCookie'))
+		end
+
+		def test_ValidateQueueRequest_InvalidToken_validateTokenReturnsNull_DoRedirect
+			key = "4e1db821-a825-49da-acd0-5d376f2068db"
+			queueConfig = QueueEventConfig.new
+			queueConfig.eventId = "e1"
+			queueConfig.queueDomain = "testDomain.com"
+			queueConfig.cookieValidityMinute = 30
+			queueConfig.cookieDomain = "testDomain"
+			queueConfig.isCookieHttpOnly = false
+			queueConfig.isCookieSecure = false
+			queueConfig.extendCookieValidity = true
+			queueConfig.version = 11
+			queueConfig.actionName = "QueueAction"
+			url = "http://test.test.com?b=h"
+			cookieProviderMock =  UserInQueueStateRepositoryMockClass.new()
+			cookieProviderMock.arrayReturns['getState'].push(StateInfo.new(false, false, nil, nil, nil))
+			token = generateHash('e1', 'queueId',(Time.now.getutc.to_i + (3 * 60)).to_s, 'false', 3, 'DirectLink', key)
+			testObject = UserInQueueServiceTestable.new(cookieProviderMock)
+			result = testObject.validateQueueRequest(url, token, queueConfig, "testCustomer", key)
+			assert(result.doRedirect())
+			assert(result.eventId == 'e1')
+			assert(result.queueId == nil)
 		end
 
 		def test_ValidateQueueRequest_NoCookie_WithoutToken_RedirectToQueue() 

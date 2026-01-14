@@ -3,7 +3,7 @@ require 'cgi'
 
 module QueueIt
 	class UserInQueueService
-		SDK_VERSION_NO = "3.7.1"
+		SDK_VERSION_NO = "3.7.2"
 		SDK_VERSION = "v3-ruby-" + SDK_VERSION_NO
     
 		def initialize(userInQueueStateRepository)
@@ -30,26 +30,26 @@ module QueueIt
 			queueParams = QueueUrlParams::extractQueueParams(queueitToken)
 
 			requestValidationResult = nil
-            isTokenValid = false
+			isTokenValid = false
 
-			if (!queueParams.nil?) 
+			if (queueParams.nil?)
+				requestValidationResult = getQueueResult(targetUrl, config, customerId)
+			else
 				tokenValidationResult = validateToken(config, queueParams, secretKey)
-				isTokenValid = tokenValidationResult.isValid
-
-				if (isTokenValid)
+				if (tokenValidationResult.nil?)
+					requestValidationResult = getQueueResult(targetUrl, config, customerId)
+				elsif (tokenValidationResult.isValid)
 					requestValidationResult = getValidTokenResult(config, queueParams, secretKey)
 				else
 					requestValidationResult = getErrorResult(customerId, targetUrl, config, queueParams, tokenValidationResult.errorCode)
 				end
-			else 
-				requestValidationResult = getQueueResult(targetUrl, config, customerId)
-            end
+			end
             
 			if (state.isFound && !isTokenValid)
 				@userInQueueStateRepository.cancelQueueCookie(config.eventId, config.cookieDomain, config.isCookieHttpOnly, config.isCookieSecure);
 			end
             
-            return requestValidationResult;
+			return requestValidationResult;
 		end
 
 		def validateCancelRequest(targetUrl, cancelConfig, customerId, secretKey)
@@ -141,18 +141,22 @@ module QueueIt
 		end
 
 		def validateToken(config, queueParams, secretKey)
-			calculatedHash = OpenSSL::HMAC.hexdigest('sha256', secretKey, queueParams.queueITTokenWithoutHash) 
-			if (calculatedHash.upcase() != queueParams.hashCode.upcase()) 
-				return TokenValidationResult.new(false, "hash")
-			end
-			if (queueParams.eventId.upcase() != config.eventId.upcase()) 
-				return TokenValidationResult.new(false, "eventid")
-			end
-			if (queueParams.timeStamp < Time.now.getutc.tv_sec) 
-				return TokenValidationResult.new(false, "timestamp")
-			end
+			begin
+				calculatedHash = OpenSSL::HMAC.hexdigest('sha256', secretKey, queueParams.queueITTokenWithoutHash) 
+				if (calculatedHash.upcase() != queueParams.hashCode.upcase())
+					return TokenValidationResult.new(false, "hash")
+				end
+				if (queueParams.eventId.upcase() != config.eventId.upcase())
+					return TokenValidationResult.new(false, "eventid")
+				end
+				if (queueParams.timeStamp < Time.now.getutc.tv_sec)
+					return TokenValidationResult.new(false, "timestamp")
+				end
 
-			return TokenValidationResult.new(true, nil)
+				return TokenValidationResult.new(true, nil)
+			rescue
+				return nil
+			end
 		end
 
 		class TokenValidationResult
