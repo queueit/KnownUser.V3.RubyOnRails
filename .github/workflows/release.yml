@@ -84,8 +84,7 @@ jobs:
             *.gemspec \
             Gemfile \
             Rakefile \
-            README.md \
-            license.txt
+            README.md
 
       - name: Show debug release variables
         run: |
