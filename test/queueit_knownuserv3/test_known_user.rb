@@ -108,7 +108,6 @@ module QueueIt
 	class TestKnownUser < Test::Unit::TestCase
 		def test_cancelRequestByLocalConfig
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			cancelConfig = CancelEventConfig.new
 			cancelConfig.eventId = "eventId"
@@ -117,7 +116,10 @@ module QueueIt
 			cancelConfig.cookieDomain = "cookieDomain"
 			cancelConfig.actionName = "CancelAction"
 
-			result = KnownUser.cancelRequestByLocalConfig("targetUrl", "token", cancelConfig, "customerId", "secretKey")
+			httpContextMock = HttpContextMock.new
+			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
+
+			result = QueueIt::KnownUser.cancelRequestByLocalConfig("targetUrl", "token", cancelConfig, "customerId", "secretKey", httpContextProvider)
 
 			assert(userInQueueService.validateCancelRequestCalls[0]["targetUrl"] == "targetUrl")
 			assert(userInQueueService.validateCancelRequestCalls[0]["config"] == cancelConfig)
@@ -128,7 +130,6 @@ module QueueIt
 
 		def test_cancelRequestByLocalConfig_AjaxCall
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			cancelConfig = CancelEventConfig.new
 			cancelConfig.eventId = "eventId"
@@ -139,11 +140,11 @@ module QueueIt
 
 			httpContextMock = HttpContextMock.new
 			httpContextMock.headers = { "x-queueit-ajaxpageurl" => "http%3a%2f%2furl" }
-			HttpContextProvider.setHttpContext(httpContextMock)
+			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			userInQueueService.validateCancelRequestResult = RequestValidationResult.new(ActionTypes::CANCEL, "eventId", nil, "http://q.qeuue-it.com", nil, cancelConfig.actionName)
 
-			result = KnownUser.cancelRequestByLocalConfig("targetUrl", "token", cancelConfig, "customerId", "secretKey")
+			result = QueueIt::KnownUser.cancelRequestByLocalConfig("targetUrl", "token", cancelConfig, "customerId", "secretKey", httpContextProvider)
 
 			assert(userInQueueService.validateCancelRequestCalls[0]["targetUrl"] == "http://url")
 			assert(userInQueueService.validateCancelRequestCalls[0]["config"] == cancelConfig)
@@ -155,7 +156,8 @@ module QueueIt
 		end
 
 		def test_cancelRequestByLocalConfig_nil_QueueDomain
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
+			httpContextMock = HttpContextMock.new
+			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			errorThrown = false
 
@@ -163,7 +165,7 @@ module QueueIt
 			cancelConfig.eventId = "eventId"
 
 			begin
-				KnownUser.cancelRequestByLocalConfig("targetUrl", "token", cancelConfig, "customerId", "secretKey")
+				QueueIt::KnownUser.cancelRequestByLocalConfig("targetUrl", "token", cancelConfig, "customerId", "secretKey", httpContextProvider)
 			rescue KnownUserError => err
 				errorThrown = err.message.eql? "cancelConfig.queueDomain can not be nil or empty."
 			end
@@ -172,7 +174,8 @@ module QueueIt
 		end
 
 		def test_cancelRequestByLocalConfig_nil_EventId
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
+			httpContextMock = HttpContextMock.new
+			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			errorThrown = false
 
@@ -180,7 +183,7 @@ module QueueIt
 			cancelConfig.queueDomain = "queueDomain"
 
 			begin
-				KnownUser.cancelRequestByLocalConfig("targetUrl", "token", cancelConfig, "customerId", "secretKey")
+				QueueIt::KnownUser.cancelRequestByLocalConfig("targetUrl", "token", cancelConfig, "customerId", "secretKey", httpContextProvider)
 			rescue KnownUserError => err
 				errorThrown = err.message.eql? "cancelConfig.eventId can not be nil or empty."
 			end
@@ -189,12 +192,13 @@ module QueueIt
 		end
 
 		def test_cancelRequestByLocalConfig_nil_CancelConfig
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
+			httpContextMock = HttpContextMock.new
+			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			errorThrown = false
 
 			begin
-				KnownUser.cancelRequestByLocalConfig("targetUrl", "token", nil, "customerId", "secretKey")
+				QueueIt::KnownUser.cancelRequestByLocalConfig("targetUrl", "token", nil, "customerId", "secretKey", httpContextProvider)
 			rescue KnownUserError => err
 				errorThrown = err.message.eql? "cancelConfig can not be nil."
 			end
@@ -203,12 +207,13 @@ module QueueIt
 		end
 
 		def test_cancelRequestByLocalConfig_nil_CustomerId
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			errorThrown = false
 
 			begin
-				KnownUser.cancelRequestByLocalConfig("targetUrl", "token", CancelEventConfig.new, nil, "secretKey")
+				QueueIt::KnownUser.cancelRequestByLocalConfig("targetUrl", "token", CancelEventConfig.new, nil, "secretKey", httpContextProvider)
 			rescue KnownUserError => err
 				errorThrown = err.message.eql? "customerId can not be nil or empty."
 			end
@@ -217,12 +222,13 @@ module QueueIt
 		end
 
 		def test_cancelRequestByLocalConfig_nil_SeceretKey
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			errorThrown = false
 
 			begin
-				KnownUser.cancelRequestByLocalConfig("targetUrl", "token", CancelEventConfig.new, "customerId", nil)
+				QueueIt::KnownUser.cancelRequestByLocalConfig("targetUrl", "token", CancelEventConfig.new, "customerId", nil, httpContextProvider)
 			rescue KnownUserError => err
 				errorThrown = err.message.eql? "secretKey can not be nil or empty."
 			end
@@ -231,12 +237,13 @@ module QueueIt
 		end
 
 		def test_cancelRequestByLocalConfig_nil_TargetUrl
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			errorThrown = false
 
 			begin
-				KnownUser.cancelRequestByLocalConfig(nil, "token", CancelEventConfig.new, "customerId", nil)
+				QueueIt::KnownUser.cancelRequestByLocalConfig(nil, "token", CancelEventConfig.new, "customerId", nil, httpContextProvider)
 			rescue KnownUserError => err
 				errorThrown = err.message.eql? "targetUrl can not be nil or empty."
 			end
@@ -245,12 +252,13 @@ module QueueIt
 		end
 
 		def test_extendQueueCookie_nil_EventId
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			errorThrown = false
 
 			begin
-				KnownUser.extendQueueCookie(nil, 10, "cookieDomain", false, false, "secretkey")
+				QueueIt::KnownUser.extendQueueCookie(nil, 10, "cookieDomain", false, false, "secretkey", httpContextProvider)
 			rescue KnownUserError => err
 				errorThrown = err.message.eql? "eventId can not be nil or empty."
 			end
@@ -259,12 +267,13 @@ module QueueIt
 		end
 
 		def test_extendQueueCookie_nil_SecretKey
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			errorThrown = false
 
 			begin
-				KnownUser.extendQueueCookie("eventId", 10, "cookieDomain", false, false, nil)
+				QueueIt::KnownUser.extendQueueCookie("eventId", 10, "cookieDomain", false, false, nil, httpContextProvider)
 			rescue KnownUserError => err
 				errorThrown = err.message.eql? "secretKey can not be nil or empty."
 			end
@@ -273,12 +282,13 @@ module QueueIt
 		end
 
 		def test_extendQueueCookie_Invalid_CookieValidityMinute
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			errorThrown = false
 
 			begin
-				KnownUser.extendQueueCookie("eventId", "invalidInt", "cookieDomain", false, false, "secrettKey")
+				QueueIt::KnownUser.extendQueueCookie("eventId", "invalidInt", "cookieDomain", false, false, "secrettKey", httpContextProvider)
 			rescue KnownUserError => err
 				errorThrown = err.message.eql? "cookieValidityMinute should be integer greater than 0."
 			end
@@ -287,12 +297,13 @@ module QueueIt
 		end
 
 		def test_extendQueueCookie_Negative_CookieValidityMinute
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			errorThrown = false
 
 			begin
-				KnownUser.extendQueueCookie("eventId", -1, "cookieDomain", false, false, "secrettKey")
+				QueueIt::KnownUser.extendQueueCookie("eventId", -1, "cookieDomain", false, false, "secrettKey", httpContextProvider)
 			rescue KnownUserError => err
 				errorThrown = err.message.eql? "cookieValidityMinute should be integer greater than 0."
 			end
@@ -301,12 +312,11 @@ module QueueIt
 		end
 
 		def test_extendQueueCookie
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
-
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
-			KnownUser.extendQueueCookie("evtId", 10, "domain", true, true, "key")
+			QueueIt::KnownUser.extendQueueCookie("evtId", 10, "domain", true, true, "key", httpContextProvider)
 
 			assert(userInQueueService.extendQueueCookieCalls[0]["eventId"] == "evtId")
 			assert(userInQueueService.extendQueueCookieCalls[0]["cookieValidityMinute"] == 10)
@@ -317,7 +327,8 @@ module QueueIt
 		end
 
 		def test_resolveQueueRequestByLocalConfig_empty_eventId
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			queueConfig = QueueEventConfig.new
 			queueConfig.cookieDomain = "cookieDomain"
@@ -332,7 +343,7 @@ module QueueIt
 			errorThrown = false
 
 			begin
-				KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerid", "secretkey")
+				QueueIt::KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerid", "secretkey", httpContextProvider)
 			rescue KnownUserError => err
 				errorThrown = err.message.eql? "queueConfig.eventId can not be nil or empty."
 			end
@@ -341,7 +352,8 @@ module QueueIt
 		end
 
 		def test_resolveQueueRequestByLocalConfig_empty_secretKey
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			queueConfig = QueueEventConfig.new
 			queueConfig.cookieDomain = "cookieDomain"
@@ -356,7 +368,7 @@ module QueueIt
 			errorThrown = false
 
 			begin
-				KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerid", nil)
+				QueueIt::KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerid", nil, httpContextProvider)
 			rescue KnownUserError => err
 				errorThrown = err.message.eql? "secretKey can not be nil or empty."
 			end
@@ -365,7 +377,8 @@ module QueueIt
 		end
 
 		def test_resolveQueueRequestByLocalConfig_empty_queueDomain
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			queueConfig = QueueEventConfig.new
 			queueConfig.cookieDomain = "cookieDomain"
@@ -380,7 +393,7 @@ module QueueIt
 			errorThrown = false
 
 			begin
-				KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerid", "secretkey")
+				QueueIt::KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerid", "secretkey", httpContextProvider)
 			rescue KnownUserError => err
 				errorThrown = err.message.eql? "queueConfig.queueDomain can not be nil or empty."
 			end
@@ -389,7 +402,8 @@ module QueueIt
 		end
 
 		def test_resolveQueueRequestByLocalConfig_empty_customerId
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			queueConfig = QueueEventConfig.new
 			queueConfig.cookieDomain = "cookieDomain"
@@ -404,7 +418,7 @@ module QueueIt
 			errorThrown = false
 
 			begin
-				KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, nil, "secretKey")
+				QueueIt::KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, nil, "secretKey", httpContextProvider)
 			rescue KnownUserError => err
 				errorThrown = err.message.eql? "customerId can not be nil or empty."
 			end
@@ -413,7 +427,8 @@ module QueueIt
 		end
 
 		def test_resolveQueueRequestByLocalConfig_Invalid_extendCookieValidity
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			queueConfig = QueueEventConfig.new
 			queueConfig.cookieDomain = "cookieDomain"
@@ -428,7 +443,7 @@ module QueueIt
 			errorThrown = false
 
 			begin
-				KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerId", "secretKey")
+				QueueIt::KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerId", "secretKey", httpContextProvider)
 			rescue KnownUserError => err
 				errorThrown = err.message.eql? "queueConfig.extendCookieValidity should be valid boolean."
 			end
@@ -437,7 +452,8 @@ module QueueIt
 		end
 
 		def test_resolveQueueRequestByLocalConfig_Invalid_cookieValidityMinute
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			queueConfig = QueueEventConfig.new
 			queueConfig.cookieDomain = "cookieDomain"
@@ -452,7 +468,7 @@ module QueueIt
 			errorThrown = false
 
 			begin
-				KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerId", "secretKey")
+				QueueIt::KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerId", "secretKey", httpContextProvider)
 			rescue KnownUserError => err
 				errorThrown = err.message.start_with? "queueConfig.cookieValidityMinute should be integer greater than 0"
 			end
@@ -461,7 +477,8 @@ module QueueIt
 		end
 
 		def test_resolveQueueRequestByLocalConfig_zero_cookieValidityMinute
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			queueConfig = QueueEventConfig.new
 			queueConfig.cookieDomain = "cookieDomain"
@@ -476,7 +493,7 @@ module QueueIt
 			errorThrown = false
 
 			begin
-				KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerId", "secretKey")
+				QueueIt::KnownUser.resolveQueueRequestByLocalConfig("targeturl", "queueIttoken", queueConfig, "customerId", "secretKey", httpContextProvider)
 			rescue KnownUserError => err
 				errorThrown = err.message.start_with? "queueConfig.cookieValidityMinute should be integer greater than 0"
 			end
@@ -485,9 +502,9 @@ module QueueIt
 		end
 
 		def test_resolveQueueRequestByLocalConfig
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			queueConfig = QueueEventConfig.new
 			queueConfig.cookieDomain = "cookieDomain"
@@ -500,7 +517,7 @@ module QueueIt
 			queueConfig.version = 12
 			queueConfig.actionName = "QueueAction"
 
-			result = KnownUser.resolveQueueRequestByLocalConfig("target", "token", queueConfig, "id", "key")
+			result = QueueIt::KnownUser.resolveQueueRequestByLocalConfig("target", "token", queueConfig, "id", "key", httpContextProvider)
 
 			assert(userInQueueService.validateQueueRequestCalls[0]["targetUrl"] == "target")
 			assert(userInQueueService.validateQueueRequestCalls[0]["queueitToken"] == "token")
@@ -512,7 +529,6 @@ module QueueIt
 
 		def test_resolveQueueRequestByLocalConfig_AjaxCall
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			queueConfig = QueueEventConfig.new
 			queueConfig.cookieDomain = "cookieDomain"
@@ -527,11 +543,11 @@ module QueueIt
 
 			httpContextMock = HttpContextMock.new
 			httpContextMock.headers = { "x-queueit-ajaxpageurl" => "http%3a%2f%2furl" }
-			HttpContextProvider.setHttpContext(httpContextMock)
+			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			userInQueueService.validateQueueRequestResult = RequestValidationResult.new(ActionTypes::QUEUE, "eventId", nil, "http://q.qeuue-it.com", nil, queueConfig.actionName)
 
-			result = KnownUser.resolveQueueRequestByLocalConfig("targetUrl", "token", queueConfig, "customerId", "secretKey")
+			result = QueueIt::KnownUser.resolveQueueRequestByLocalConfig("targetUrl", "token", queueConfig, "customerId", "secretKey", httpContextProvider)
 
 			assert(userInQueueService.validateQueueRequestCalls[0]["targetUrl"] == "http://url")
 			assert(userInQueueService.validateQueueRequestCalls[0]["config"] == queueConfig)
@@ -544,9 +560,11 @@ module QueueIt
 
 		def test_validateRequestByIntegrationConfig_empty_currentUrlWithoutQueueITToken
 			errorThrown = false
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			begin
-				KnownUser.validateRequestByIntegrationConfig("", "queueIttoken", "{}", "customerId", "secretKey")
+				QueueIt::KnownUser.validateRequestByIntegrationConfig("", "queueIttoken", "{}", "customerId", "secretKey", httpContextProvider)
 			rescue KnownUserError => err
 				errorThrown = err.message.start_with? "currentUrlWithoutQueueITToken can not be nil or empty"
 			end
@@ -556,7 +574,6 @@ module QueueIt
 
 		def test_validateRequestByIntegrationConfig
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			integrationConfig =
 			{
@@ -609,10 +626,10 @@ module QueueIt
 			httpContextMock = HttpContextMock.new
 			httpContextMock.userAgent = 'googlebot'
 			httpContextMock.cookieManager = CookieManagerMock.new
-			HttpContextProvider.setHttpContext(httpContextMock)
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			integrationConfigJson = JSON.generate(integrationConfig)
-			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "token", integrationConfigJson, "id", "key")
+			result = QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "token", integrationConfigJson, "id", "key", httpContextProvider)
 
 			assert(userInQueueService.validateQueueRequestCalls[0]["targetUrl"] == "http://test.com?event1=true")
 			assert(userInQueueService.validateQueueRequestCalls[0]["queueitToken"] == "token")
@@ -633,7 +650,6 @@ module QueueIt
 
 		def test_validateRequestByIntegrationConfig_AjaxCall
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			integrationConfig =
 			{
@@ -687,13 +703,13 @@ module QueueIt
 			httpContextMock.userAgent = 'googlebot'
 			httpContextMock.headers = { "x-queueit-ajaxpageurl" => "http%3a%2f%2furl" }
 			httpContextMock.cookieManager = CookieManagerMock.new
-			HttpContextProvider.setHttpContext(httpContextMock)
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			integrationConfigJson = JSON.generate(integrationConfig)
 
 			userInQueueService.validateQueueRequestResult = RequestValidationResult.new(ActionTypes::QUEUE, "eventId", nil, "http://q.qeuue-it.com", nil, integrationConfig[:Integrations][0][:Name])
 
-			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "token", integrationConfigJson, "id", "key")
+			result = QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "token", integrationConfigJson, "id", "key", httpContextProvider)
 
 			assert(userInQueueService.validateQueueRequestCalls[0]["targetUrl"] == "http://url")
 			assert(userInQueueService.validateQueueRequestCalls[0]["queueitToken"] == "token")
@@ -715,7 +731,6 @@ module QueueIt
 
 		def test_validateRequestByIntegrationConfig_NotMatch
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			integrationConfig =
 			{
@@ -729,8 +744,11 @@ module QueueIt
 			  :ConfigDataVersion => "1.0.0.1"
 			}
 
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
+
 			integrationConfigJson = JSON.generate(integrationConfig)
-			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey")
+			result = QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", httpContextProvider)
 
 			assert(userInQueueService.validateQueueRequestCalls.length == 0)
 			assert(!result.doRedirect)
@@ -738,9 +756,9 @@ module QueueIt
 
 
 		def test_validateRequestByIntegrationConfig_ForcedTargetUrl
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			integrationConfig =
 			{
@@ -786,7 +804,7 @@ module QueueIt
 			}
 
 			integrationConfigJson = JSON.generate(integrationConfig)
-			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey")
+			result = QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", httpContextProvider)
 
 			assert(userInQueueService.validateQueueRequestCalls[0]['targetUrl'] == "http://test.com")
 			assert(!result.isAjaxResult)
@@ -794,7 +812,6 @@ module QueueIt
 
 		def test_validateRequestByIntegrationConfig_ForcedTargetUrl_AjaxCall
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			integrationConfig =
 			{
@@ -841,12 +858,12 @@ module QueueIt
 
 			httpContextMock = HttpContextMock.new
 			httpContextMock.headers = { "x-queueit-ajaxpageurl" => "http%3a%2f%2furl" }
-			HttpContextProvider.setHttpContext(httpContextMock)
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			userInQueueService.validateQueueRequestResult = RequestValidationResult.new(ActionTypes::QUEUE, "eventId", nil, "http://q.qeuue-it.com", nil, integrationConfig[:Integrations][0][:Name])
 
 			integrationConfigJson = JSON.generate(integrationConfig)
-			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey")
+			result = QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", httpContextProvider)
 
 			assert(userInQueueService.validateQueueRequestCalls[0]['targetUrl'] == "http://test.com")
 			assert(result.isAjaxResult)
@@ -854,9 +871,9 @@ module QueueIt
 		end
 
 		def test_validateRequestByIntegrationConfig_EventTargetUrl
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			integrationConfig =
 			{
@@ -901,7 +918,7 @@ module QueueIt
 			}
 
 			integrationConfigJson = JSON.generate(integrationConfig)
-			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey")
+			result = QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", httpContextProvider)
 
 			assert(userInQueueService.validateQueueRequestCalls[0]['targetUrl'] == "")
 			assert(!result.isAjaxResult)
@@ -909,7 +926,6 @@ module QueueIt
 
 		def test_validateRequestByIntegrationConfig_EventTargetUrl_AjaxCall
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			integrationConfig =
 			{
@@ -955,12 +971,12 @@ module QueueIt
 
 			httpContextMock = HttpContextMock.new
 			httpContextMock.headers = { "x-queueit-ajaxpageurl" => "http%3a%2f%2furl" }
-			HttpContextProvider.setHttpContext(httpContextMock)
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			userInQueueService.validateQueueRequestResult = RequestValidationResult.new(ActionTypes::QUEUE, "eventId", nil, "http://q.qeuue-it.com", nil, integrationConfig[:Integrations][0][:Name])
 
 			integrationConfigJson = JSON.generate(integrationConfig)
-			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey")
+			result = QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", httpContextProvider)
 
 			assert(userInQueueService.validateQueueRequestCalls[0]['targetUrl'] == "")
 			assert(result.isAjaxResult)
@@ -968,9 +984,9 @@ module QueueIt
 		end
 
 		def test_validateRequestByIntegrationConfig_CancelAction
-			HttpContextProvider.setHttpContext(HttpContextMock.new)
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			integrationConfig =
 			{
@@ -1010,7 +1026,7 @@ module QueueIt
 			}
 
 			integrationConfigJson = JSON.generate(integrationConfig)
-			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey")
+			result = QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", httpContextProvider)
 
 			assert(userInQueueService.validateCancelRequestCalls[0]["targetUrl"] == "http://test.com?event1=true")
 			assert(userInQueueService.validateCancelRequestCalls[0]["customerId"] == "customerid")
@@ -1026,7 +1042,6 @@ module QueueIt
 
 		def test_validateRequestByIntegrationConfig_CancelAction_AjaxCall
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			integrationConfig =
 			{
@@ -1067,12 +1082,12 @@ module QueueIt
 
 			httpContextMock = HttpContextMock.new
 			httpContextMock.headers = { "x-queueit-ajaxpageurl" => "http%3a%2f%2furl" }
-			HttpContextProvider.setHttpContext(httpContextMock)
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			userInQueueService.validateCancelRequestResult = RequestValidationResult.new(ActionTypes::CANCEL, "eventId", nil, "http://q.qeuue-it.com", nil, integrationConfig[:Integrations][0][:Name])
 
 			integrationConfigJson = JSON.generate(integrationConfig)
- 			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey")
+ 			result = QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", httpContextProvider)
 
 			assert(userInQueueService.validateCancelRequestCalls[0]["targetUrl"] == "http://url")
 			assert(userInQueueService.validateCancelRequestCalls[0]["customerId"] == "customerid")
@@ -1089,7 +1104,6 @@ module QueueIt
 
 		def test_validateRequestByIntegrationConfig_ignoreAction
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			integrationConfig =
 			{
@@ -1128,8 +1142,11 @@ module QueueIt
 				:ConfigDataVersion => "1.0.0.1"
 			}
 
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
+
 			integrationConfigJson = JSON.generate(integrationConfig)
-			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey")
+			result = QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", httpContextProvider)
 
 			assert(userInQueueService.getIgnoreActionResultCalls.length.eql? 1)
 			assert(userInQueueService.getIgnoreActionResultCalls[0]["actionName"] == integrationConfig[:Integrations][0][:Name])
@@ -1138,7 +1155,6 @@ module QueueIt
 
 		def test_validateRequestByIntegrationConfig_ignoreAction_AjaxCall
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			integrationConfig =
 			{
@@ -1179,10 +1195,10 @@ module QueueIt
 
 			httpContextMock = HttpContextMock.new
 			httpContextMock.headers = { "x-queueit-ajaxpageurl" => "http%3a%2f%2furl" }
-			HttpContextProvider.setHttpContext(httpContextMock)
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			integrationConfigJson = JSON.generate(integrationConfig)
-			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey")
+			result = QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", httpContextProvider)
 
 			assert(userInQueueService.getIgnoreActionResultCalls.length.eql? 1)
 			assert(userInQueueService.getIgnoreActionResultCalls[0]["actionName"] == integrationConfig[:Integrations][0][:Name])
@@ -1191,7 +1207,6 @@ module QueueIt
 
 		def test_validateRequestByIntegrationConfig_defaultsTo_ignoreAction
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			integrationConfig =
 			{
@@ -1230,8 +1245,11 @@ module QueueIt
 				:ConfigDataVersion => "1.0.0.1"
 			}
 
+			httpContextMock = HttpContextMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
+
 			integrationConfigJson = JSON.generate(integrationConfig)
-			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey")
+			QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", httpContextProvider)
 
 			assert(userInQueueService.getIgnoreActionResultCalls.length.eql? 1)
 			assert(userInQueueService.getIgnoreActionResultCalls[0]["actionName"] == integrationConfig[:Integrations][0][:Name])
@@ -1239,7 +1257,6 @@ module QueueIt
 
 		def test_ValidateRequestByIntegrationConfig_Debug
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			integrationConfig =
 			{
@@ -1304,7 +1321,7 @@ module QueueIt
 				"x-forwarded-host" => "xfh",
 				"x-forwarded-proto" => "xfp"
 			}
-			HttpContextProvider.setHttpContext(httpContextMock)
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			integrationConfigJson = JSON.generate(integrationConfig)
 
@@ -1312,7 +1329,7 @@ module QueueIt
 			queueitToken = QueueITTokenGenerator::generateDebugToken("eventId", secretKey, false)
 
 			expectedServerTime = Time.now.utc.iso8601
-			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", queueitToken, integrationConfigJson, "customerId", secretKey)
+			QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", queueitToken, integrationConfigJson, "customerId", secretKey, httpContextProvider)
 
 			expectedCookieValue =
 				"SdkVersion=" + UserInQueueService::SDK_VERSION +
@@ -1347,7 +1364,6 @@ module QueueIt
 
 		def test_ValidateRequestByIntegrationConfig_Debug_WithoutMatch
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			httpContextMock = HttpContextMock.new
 			httpContextMock.url = "http://localhost/original_url"
@@ -1360,7 +1376,7 @@ module QueueIt
 				"x-forwarded-host" => "xfh",
 				"x-forwarded-proto" => "xfp"
 			}
-			HttpContextProvider.setHttpContext(httpContextMock)
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			integrationConfig =
 			{
@@ -1379,7 +1395,7 @@ module QueueIt
 
 			integrationConfigJson = JSON.generate(integrationConfig)
 			expectedServerTime = Time.now.utc.iso8601
-			KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", queueitToken, integrationConfigJson, "customerId", secretKey)
+			QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", queueitToken, integrationConfigJson, "customerId", secretKey, httpContextProvider)
 
 			expectedCookieValue =
 				"SdkVersion=" + UserInQueueService::SDK_VERSION +
@@ -1402,7 +1418,6 @@ module QueueIt
 
 		def test_validateRequestByIntegrationConfig_debug_invalid_config_json
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			httpContextMock = HttpContextMock.new
 			httpContextMock.url = "http://localhost/original_url"
@@ -1414,8 +1429,7 @@ module QueueIt
 				"x-forwarded-for" => "xff",
 				"x-forwarded-host" => "xfh",
 				"x-forwarded-proto" => "xfp" }
-
-			HttpContextProvider.setHttpContext(httpContextMock)
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			integrationConfigJson = "{}"
 			queueitToken = QueueITTokenGenerator::generateDebugToken("eventId", "secretKey", false)
@@ -1424,7 +1438,7 @@ module QueueIt
 
 			errorThrown = false
 			begin
-				KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", queueitToken, integrationConfigJson, "customerId", "secretKey")
+				QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", queueitToken, integrationConfigJson, "customerId", "secretKey", httpContextProvider)
 			rescue KnownUserError => err
 				errorThrown = err.message.start_with? "integrationConfigJson is not valid json."
 			end
@@ -1455,10 +1469,11 @@ module QueueIt
 		def test_ValidateRequestByIntegrationConfig_Debug_Missing_CustomerId
 			httpContextMock = HttpContextMock.new
 			httpContextMock.cookieManager = CookieManagerMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			expiredDebugToken = QueueITTokenGenerator::generateDebugToken("eventId", "secretKey", true)
 
-			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", expiredDebugToken, "{}", nil, "secretKey")
+			result = QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", expiredDebugToken, "{}", nil, "secretKey", httpContextProvider)
 
 			assert("https://api2.queue-it.net/diagnostics/connector/error/?code=setup" == result.redirectUrl)
 			assert(httpContextMock.cookieManager.cookieList.length == 0)
@@ -1467,10 +1482,11 @@ module QueueIt
 		def test_ValidateRequestByIntegrationConfig_Debug_Missing_Secretkey
 			httpContextMock = HttpContextMock.new
 			httpContextMock.cookieManager = CookieManagerMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			expiredDebugToken = QueueITTokenGenerator::generateDebugToken("eventId", "secretKey", true)
 
-			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", expiredDebugToken, "{}", "customerId", nil)
+			result = QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", expiredDebugToken, "{}", "customerId", nil, httpContextProvider)
 
 			assert("https://api2.queue-it.net/diagnostics/connector/error/?code=setup" == result.redirectUrl)
 			assert(httpContextMock.cookieManager.cookieList.length == 0)
@@ -1479,10 +1495,11 @@ module QueueIt
 		def test_ValidateRequestByIntegrationConfig_Debug_ExpiredToken
 			httpContextMock = HttpContextMock.new
 			httpContextMock.cookieManager = CookieManagerMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			expiredDebugToken = QueueITTokenGenerator::generateDebugToken("eventId", "secretKey", true)
 
-			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", expiredDebugToken, "{}", "customerId", "secretKey")
+			result = QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", expiredDebugToken, "{}", "customerId", "secretKey", httpContextProvider)
 
 			assert("https://customerId.api2.queue-it.net/customerId/diagnostics/connector/error/?code=timestamp" == result.redirectUrl)
 			assert(httpContextMock.cookieManager.cookieList.length == 0)
@@ -1491,10 +1508,11 @@ module QueueIt
 		def test_ValidateRequestByIntegrationConfig_Debug_ModifiedToken
 			httpContextMock = HttpContextMock.new
 			httpContextMock.cookieManager = CookieManagerMock.new
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			invalidDebugToken = QueueITTokenGenerator::generateDebugToken("eventId", "secretKey", false) + "invalid-hash"
 
-			result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", invalidDebugToken, "{}", "customerId", "secretKey")
+			result = QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", invalidDebugToken, "{}", "customerId", "secretKey", httpContextProvider)
 
 			assert("https://customerId.api2.queue-it.net/customerId/diagnostics/connector/error/?code=hash" == result.redirectUrl)
 			assert(httpContextMock.cookieManager.cookieList.length == 0)
@@ -1502,7 +1520,6 @@ module QueueIt
 
 		def test_ResolveQueueRequestByLocalConfig_Debug
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			queueConfig = QueueEventConfig.new
 			queueConfig.eventId = "eventId"
@@ -1528,13 +1545,13 @@ module QueueIt
 				"x-forwarded-host" => "xfh",
 				"x-forwarded-proto" => "xfp"
 			}
-			HttpContextProvider.setHttpContext(httpContextMock)
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			secretKey = "secretKey"
 			queueitToken = QueueITTokenGenerator::generateDebugToken("eventId", secretKey, false)
 
 			expectedServerTime = Time.now.utc.iso8601
-			KnownUser.resolveQueueRequestByLocalConfig("url", queueitToken, queueConfig, "customerId", secretKey)
+			QueueIt::KnownUser.resolveQueueRequestByLocalConfig("url", queueitToken, queueConfig, "customerId", secretKey, httpContextProvider)
 
 			expectedCookieValue =
 				"SdkVersion=" + UserInQueueService::SDK_VERSION +
@@ -1567,7 +1584,6 @@ module QueueIt
 
 		def test_ResolveQueueRequestByLocalConfig_Debug_NullConfig
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			httpContextMock = HttpContextMock.new
 			httpContextMock.url = "http://localhost/original_url"
@@ -1580,14 +1596,14 @@ module QueueIt
 				"x-forwarded-host" => "xfh",
 				"x-forwarded-proto" => "xfp"
 			}
-			HttpContextProvider.setHttpContext(httpContextMock)
+  			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			queueitToken = QueueITTokenGenerator::generateDebugToken("eventId", "secretKey", false)
 			expectedServerTime = Time.now.utc.iso8601
 
 			errorThrown = false
 			begin
-				KnownUser.resolveQueueRequestByLocalConfig("http://test.com?event1=true", queueitToken, nil, "customerId", "secretKey")
+				QueueIt::KnownUser.resolveQueueRequestByLocalConfig("http://test.com?event1=true", queueitToken, nil, "customerId", "secretKey", httpContextProvider)
 			rescue KnownUserError => err
 				errmsg = err.message
 				errorThrown = err.message.start_with? "queueConfig can not be nil."
@@ -1619,11 +1635,12 @@ module QueueIt
 		def test_ResolveQueueRequestByLocalConfig_Debug_Missing_CustomerId
 			httpContextMock = HttpContextMock.new
 			httpContextMock.cookieManager = CookieManagerMock.new
+			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			queueConfig = QueueEventConfig.new
 			expiredDebugToken = QueueITTokenGenerator::generateDebugToken("eventId", "secretKey", true)
 
-			result = KnownUser.resolveQueueRequestByLocalConfig("http://test.com?event1=true", expiredDebugToken, queueConfig, nil, "secretKey")
+			result = QueueIt::KnownUser.resolveQueueRequestByLocalConfig("http://test.com?event1=true", expiredDebugToken, queueConfig, nil, "secretKey", httpContextProvider)
 
 			assert("https://api2.queue-it.net/diagnostics/connector/error/?code=setup" == result.redirectUrl)
 			assert(httpContextMock.cookieManager.cookieList.length == 0)
@@ -1632,11 +1649,12 @@ module QueueIt
 		def test_ResolveQueueRequestByLocalConfig_Debug_Missing_SecretKey
 			httpContextMock = HttpContextMock.new
 			httpContextMock.cookieManager = CookieManagerMock.new
+			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			queueConfig = QueueEventConfig.new
 			expiredDebugToken = QueueITTokenGenerator::generateDebugToken("eventId", "secretKey", true)
 
-			result = KnownUser.resolveQueueRequestByLocalConfig("http://test.com?event1=true", expiredDebugToken, queueConfig, "customerId", nil)
+			result = QueueIt::KnownUser.resolveQueueRequestByLocalConfig("http://test.com?event1=true", expiredDebugToken, queueConfig, "customerId", nil, httpContextProvider)
 
 			assert("https://api2.queue-it.net/diagnostics/connector/error/?code=setup" == result.redirectUrl)
 			assert(httpContextMock.cookieManager.cookieList.length == 0)
@@ -1645,11 +1663,12 @@ module QueueIt
 		def test_ResolveQueueRequestByLocalConfig_Debug_ExpiredToken
 			httpContextMock = HttpContextMock.new
 			httpContextMock.cookieManager = CookieManagerMock.new
+			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			queueConfig = QueueEventConfig.new
 			expiredDebugToken = QueueITTokenGenerator::generateDebugToken("eventId", "secretKey", true)
 
-			result = KnownUser.resolveQueueRequestByLocalConfig("http://test.com?event1=true", expiredDebugToken, queueConfig, "customerId", "secretKey")
+			result = QueueIt::KnownUser.resolveQueueRequestByLocalConfig("http://test.com?event1=true", expiredDebugToken, queueConfig, "customerId", "secretKey", httpContextProvider)
 
 			assert("https://customerId.api2.queue-it.net/customerId/diagnostics/connector/error/?code=timestamp" == result.redirectUrl)
 			assert(httpContextMock.cookieManager.cookieList.length == 0)
@@ -1658,11 +1677,12 @@ module QueueIt
 		def test_ResolveQueueRequestByLocalConfig_Debug_ModifiedToken
 			httpContextMock = HttpContextMock.new
 			httpContextMock.cookieManager = CookieManagerMock.new
+			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			queueConfig = QueueEventConfig.new
 			invalidDebugToken = QueueITTokenGenerator::generateDebugToken("eventId", "secretKey", false) + "invalid-hash"
 
-			result = KnownUser.resolveQueueRequestByLocalConfig("http://test.com?event1=true", invalidDebugToken, queueConfig, "customerId", "secretKey")
+			result = QueueIt::KnownUser.resolveQueueRequestByLocalConfig("http://test.com?event1=true", invalidDebugToken, queueConfig, "customerId", "secretKey", httpContextProvider)
 
 			assert("https://customerId.api2.queue-it.net/customerId/diagnostics/connector/error/?code=hash" == result.redirectUrl)
 			assert(httpContextMock.cookieManager.cookieList.length == 0)
@@ -1670,7 +1690,6 @@ module QueueIt
 
 		def test_CancelRequestByLocalConfig_Debug
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			cancelConfig = CancelEventConfig.new
 			cancelConfig.eventId = "eventId"
@@ -1692,13 +1711,13 @@ module QueueIt
 				"x-forwarded-host" => "xfh",
 				"x-forwarded-proto" => "xfp"
 			}
-			HttpContextProvider.setHttpContext(httpContextMock)
+			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			secretKey = "secretKey"
 			queueitToken = QueueITTokenGenerator::generateDebugToken("eventId", secretKey, false)
 
 			expectedServerTime = Time.now.utc.iso8601
-			KnownUser.cancelRequestByLocalConfig("url", queueitToken, cancelConfig, "customerId", secretKey)
+			QueueIt::KnownUser.cancelRequestByLocalConfig("url", queueitToken, cancelConfig, "customerId", secretKey, httpContextProvider)
 
 			expectedCookieValue =
 				"SdkVersion=" + UserInQueueService::SDK_VERSION +
@@ -1727,7 +1746,6 @@ module QueueIt
 
 		def test_CancelRequestByLocalConfig_Debug_NullConfig
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			httpContextMock = HttpContextMock.new
 			httpContextMock.url = "http://localhost/original_url"
@@ -1740,14 +1758,14 @@ module QueueIt
 				"x-forwarded-host" => "xfh",
 				"x-forwarded-proto" => "xfp"
 			}
-			HttpContextProvider.setHttpContext(httpContextMock)
+			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			queueitToken = QueueITTokenGenerator::generateDebugToken("eventId", "secretKey", false)
 			expectedServerTime = Time.now.utc.iso8601
 
 			errorThrown = false
 			begin
-				KnownUser.cancelRequestByLocalConfig("http://test.com?event1=true", queueitToken, nil, "customerId", "secretKey")
+				QueueIt::KnownUser.cancelRequestByLocalConfig("http://test.com?event1=true", queueitToken, nil, "customerId", "secretKey", httpContextProvider)
 			rescue KnownUserError => err
 				errmsg = err.message
 				errorThrown = err.message.start_with? "cancelConfig can not be nil."
@@ -1779,13 +1797,13 @@ module QueueIt
 		def test_CancelRequestByLocalConfig_Debug_Missing_CustomerId
 			httpContextMock = HttpContextMock.new
 			httpContextMock.cookieManager = CookieManagerMock.new
-			HttpContextProvider.setHttpContext(httpContextMock)
+			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			cancelConfig = CancelEventConfig.new
 			expiredDebugToken = QueueITTokenGenerator::generateDebugToken("eventId", "secretKey", true)
 
-			result = KnownUser.cancelRequestByLocalConfig(
-				"http://test.com?event1=true", expiredDebugToken, cancelConfig, nil, "secretKey")
+			result = QueueIt::KnownUser.cancelRequestByLocalConfig(
+				"http://test.com?event1=true", expiredDebugToken, cancelConfig, nil, "secretKey", httpContextProvider)
 
 			assert("https://api2.queue-it.net/diagnostics/connector/error/?code=setup" == result.redirectUrl)
 			assert(httpContextMock.cookieManager.cookieList.length == 0)
@@ -1794,13 +1812,13 @@ module QueueIt
 		def test_CancelRequestByLocalConfig_Debug_Missing_SecretKey
 			httpContextMock = HttpContextMock.new
 			httpContextMock.cookieManager = CookieManagerMock.new
-			HttpContextProvider.setHttpContext(httpContextMock)
+			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			cancelConfig = CancelEventConfig.new
 			expiredDebugToken = QueueITTokenGenerator::generateDebugToken("eventId", "secretKey", true)
 
-			result = KnownUser.cancelRequestByLocalConfig(
-				"http://test.com?event1=true", expiredDebugToken, cancelConfig, "customerId", nil)
+			result = QueueIt::KnownUser.cancelRequestByLocalConfig(
+				"http://test.com?event1=true", expiredDebugToken, cancelConfig, "customerId", nil, httpContextProvider)
 
 			assert("https://api2.queue-it.net/diagnostics/connector/error/?code=setup" == result.redirectUrl)
 			assert(httpContextMock.cookieManager.cookieList.length == 0)
@@ -1809,13 +1827,13 @@ module QueueIt
 		def test_CancelRequestByLocalConfig_Debug_ExpiredToken
 			httpContextMock = HttpContextMock.new
 			httpContextMock.cookieManager = CookieManagerMock.new
-			HttpContextProvider.setHttpContext(httpContextMock)
+			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			cancelConfig = CancelEventConfig.new
 			expiredDebugToken = QueueITTokenGenerator::generateDebugToken("eventId", "secretKey", true)
 
-			result = KnownUser.cancelRequestByLocalConfig(
-				"http://test.com?event1=true", expiredDebugToken, cancelConfig, "customerId", "secretKey")
+			result = QueueIt::KnownUser.cancelRequestByLocalConfig(
+				"http://test.com?event1=true", expiredDebugToken, cancelConfig, "customerId", "secretKey", httpContextProvider)
 
 			assert("https://customerId.api2.queue-it.net/customerId/diagnostics/connector/error/?code=timestamp" == result.redirectUrl)
 			assert(httpContextMock.cookieManager.cookieList.length == 0)
@@ -1824,13 +1842,13 @@ module QueueIt
 		def test_CancelRequestByLocalConfig_Debug_ModifiedToken
 			httpContextMock = HttpContextMock.new
 			httpContextMock.cookieManager = CookieManagerMock.new
-			HttpContextProvider.setHttpContext(httpContextMock)
+			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock)
 
 			cancelConfig = CancelEventConfig.new
 			invalidDebugToken = QueueITTokenGenerator::generateDebugToken("eventId", "secretKey", false) + "invalid-hash"
 
-			result = KnownUser.cancelRequestByLocalConfig(
-				"http://test.com?event1=true", invalidDebugToken, cancelConfig, "customerId", "secretKey")
+			result = QueueIt::KnownUser.cancelRequestByLocalConfig(
+				"http://test.com?event1=true", invalidDebugToken, cancelConfig, "customerId", "secretKey", httpContextProvider)
 
 			assert("https://customerId.api2.queue-it.net/customerId/diagnostics/connector/error/?code=hash" == result.redirectUrl)
 			assert(httpContextMock.cookieManager.cookieList.length == 0)
@@ -1838,7 +1856,6 @@ module QueueIt
 
 		def test_CancelRequestByLocalConfig_Exception_NoDebugToken_NoDebugCookie
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			cancelConfig = CancelEventConfig.new
 			cancelConfig.eventId = "eventId"
@@ -1858,11 +1875,12 @@ module QueueIt
 				"x-forwarded-host" => "xfh",
 				"x-forwarded-proto" => "xfp"
 			}
-			HttpContextProvider.setHttpContext(httpContextMock)
+			httpContextMock.cookieManager = CookieManagerMock.new
+			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			userInQueueService.validateCancelRequestRaiseException = true
 			begin
-				result = KnownUser.cancelRequestByLocalConfig("targetUrl", "token", cancelConfig, "customerId", "secretKey")
+				result = QueueIt::KnownUser.cancelRequestByLocalConfig("targetUrl", "token", cancelConfig, "customerId", "secretKey", httpContextProvider)
 			rescue Exception => e
 				assert(e.message == "Exception")
 			end
@@ -1872,7 +1890,6 @@ module QueueIt
 
 		def test_ValidateRequestByIntegrationConfig_Exception_NoDebugToken_NoDebugCookie
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 			integrationConfig =
 			{
 				:Description => "test",
@@ -1923,11 +1940,11 @@ module QueueIt
 				"x-forwarded-host" => "xfh",
 				"x-forwarded-proto" => "xfp"
 			}
-			HttpContextProvider.setHttpContext(httpContextMock)
+			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			userInQueueService.validateCancelRequestRaiseException = true
 			begin
-				result = KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey")
+				result = QueueIt::KnownUser.validateRequestByIntegrationConfig("http://test.com?event1=true", "queueIttoken", integrationConfigJson, "customerid", "secretkey", httpContextProvider)
 			rescue Exception => e
 				assert(e.message == "Exception")
 			end
@@ -1937,7 +1954,6 @@ module QueueIt
 
 		def test_ResolveQueueRequestByLocalConfig_Exception_NoDebugToken_NoDebugCookie
 			userInQueueService = UserInQueueServiceMock.new
-			KnownUser.class_variable_set(:@@userInQueueService, userInQueueService)
 
 			queueConfig = QueueEventConfig.new
 			queueConfig.cookieDomain = "cookieDomain"
@@ -1961,11 +1977,11 @@ module QueueIt
 				"x-forwarded-host" => "xfh",
 				"x-forwarded-proto" => "xfp"
 			}
-			HttpContextProvider.setHttpContext(httpContextMock)
+			httpContextProvider = QueueIt::HttpContextProvider.new(httpContextMock, userInQueueService)
 
 			userInQueueService.validateQueueRequestRaiseException = true
 			begin
-				result = KnownUser.resolveQueueRequestByLocalConfig("target", "token", queueConfig, "id", "key")
+				result = QueueIt::KnownUser.resolveQueueRequestByLocalConfig("target", "token", queueConfig, "id", "key", httpContextProvider)
 			rescue Exception => e
 				assert(e.message == "Exception")
 			end

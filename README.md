@@ -1,7 +1,7 @@
 # KnownUser.V3.RubyOnRails
 Before getting started please read the [documentation](https://github.com/queueit/Documentation/tree/main/serverside-connectors) to get acquainted with server-side connectors.
 
-This connector supports Ruby v.1.9.3+ and Rails v.3.2+.
+This connector supports Ruby v.3.4+ and Rails v.5.0.5+.
 
 ## Installation
 Queue-it KnownUser V3 is distributed as a gem, which is how it should be used in your app.
@@ -40,10 +40,9 @@ class ResourceController < ApplicationController
       #requestUriNoToken.host = "INSERT-REPLACEMENT-HOST-HERE"
       #requestUrlWithoutToken = requestUriNoToken.to_s
 
-      queueitToken = request.query_parameters[QueueIt::KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
+      queueitToken = QueueIt::Utils::getParameterByName(requestUrl, QueueIt::KnownUser::QUEUEIT_TOKEN_KEY)
 
-      # Initialize the SDK with the rails http context (must be done before calling validateRequestByIntegrationConfig)
-      QueueIt::HttpContextProvider::setHttpContext(QueueIt::RailsHttpContext.new(request))
+      httpContextProvider = QueueIt::HttpContextProvider.new(QueueIt::RailsHttpContext.new(request))
 
       # Verify if the user has been through the queue
       validationResult = QueueIt::KnownUser.validateRequestByIntegrationConfig(
@@ -51,7 +50,8 @@ class ResourceController < ApplicationController
         queueitToken,
         configJson,
         customerId,
-        secretKey)
+        secretKey,
+				httpContextProvider)
 
       if(validationResult.doRedirect)      
         #Adding no cache headers to prevent browsers to cache requests
@@ -63,19 +63,21 @@ class ResourceController < ApplicationController
         if(!validationResult.isAjaxResult)
           # Send the user to the queue - either becuase hash was missing or becuase is was invalid
           redirect_to validationResult.redirectUrl
+          return
         else
-          head :ok
           ajaxQueueRedirectHeaderName = validationResult.getAjaxQueueRedirectHeaderKey()
           response.headers[ajaxQueueRedirectHeaderName] = validationResult.getAjaxRedirectUrl()
           response.headers["Access-Control-Expose-Headers"] = ajaxQueueRedirectHeaderName
+          head :ok
+          return
         end       
       else
         # Request can continue, we remove queueittoken from url to avoid sharing of user specific token	
         if(requestUrl != requestUrlWithoutToken && validationResult.actionType == "Queue")	
           redirect_to requestUrlWithoutToken
+          return
         end
       end
-
     rescue StandardError => stdErr
       # There was an error validating the request
       # Use your own logging framework to log the error
@@ -110,10 +112,9 @@ class ResourceController < ApplicationController
       # eventConfig.layoutName = "NameOfYourCustomLayout" # Optional - Name of the queue layout. If unspecified then settings from Event will be used.
 
       requestUrl = request.original_url
-      queueitToken = request.query_parameters[QueueIt::KnownUser::QUEUEIT_TOKEN_KEY.to_sym]
+      queueitToken = QueueIt::Utils::getParameterByName(requestUrl, QueueIt::KnownUser::QUEUEIT_TOKEN_KEY)
 
-      # Initialize the SDK with the rails http context (must be done before calling validateRequestByIntegrationConfig)
-      QueueIt::HttpContextProvider::setHttpContext(QueueIt::RailsHttpContext.new(request))
+      httpContextProvider = QueueIt::HttpContextProvider.new(QueueIt::RailsHttpContext.new(request))
 
       # Verify if the user has been through the queue
       validationResult = QueueIt::KnownUser.resolveQueueRequestByLocalConfig(
@@ -121,7 +122,8 @@ class ResourceController < ApplicationController
         queueitToken,
         eventConfig,
         customerId,
-        secretKey)
+        secretKey,
+        httpContextProvider)
 
       if(validationResult.doRedirect)	
         #Adding no cache headers to prevent browsers to cache requests
@@ -132,11 +134,13 @@ class ResourceController < ApplicationController
         if(!validationResult.isAjaxResult)
           # Send the user to the queue - either becuase hash was missing or becuase is was invalid
           redirect_to validationResult.redirectUrl
+          return
         else
-          head :ok
           ajaxQueueRedirectHeaderName = validationResult.getAjaxQueueRedirectHeaderKey()
           response.headers[ajaxQueueRedirectHeaderName] = validationResult.getAjaxRedirectUrl()
           response.headers["Access-Control-Expose-Headers"] = ajaxQueueRedirectHeaderName
+          head :ok
+          return
         end
       else
         # Request can continue - we remove queueittoken form querystring parameter to avoid sharing of user specific token				
@@ -145,9 +149,9 @@ class ResourceController < ApplicationController
 
         if(requestUrl != requestUrlWithoutToken && validationResult.actionType == "Queue")
           redirect_to requestUrlWithoutToken
+          return
         end
       end
-
     rescue StandardError => stdErr
       # There was an error validating the request
       # Use your own logging framework to log the error
@@ -157,6 +161,7 @@ class ResourceController < ApplicationController
   end
 end
 ```
+
 
 ## Advanced Features
 ### Request body trigger
@@ -184,5 +189,5 @@ end
 Then, on each request, before calling the any of the SDK methods, you should initialize the SDK with your custom RailsHttpContext implementation, instead of the RailsHttpContext:
 
 ```ruby
-QueueIt::HttpContextProvider::setHttpContext(RailsHttpContextWithRequestBody.new(request))
+httpContextProvider = QueueIt::HttpContextProvider.new(QueueIt::RailsHttpContextWithRequestBody.new(request))
 ```

@@ -17,6 +17,18 @@ module QueueIt
 		def self.urlDecode(value)
 			return CGI.unescape(value)
 		end
+		def self.getParameterByName(url, parameterName)
+			name = Regexp.escape(parameterName)
+			regex = /[?&]#{name}(=([^&#]*)|&|#|$)/
+			match = url.match(regex)
+
+			return nil unless match
+			return '' if match[2].nil?
+
+			response = CGI.unescape(match[2])
+
+			return response
+		end
 	end
 
 	class QueueEventConfig

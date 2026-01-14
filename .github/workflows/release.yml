@@ -1,0 +1,120 @@
+name: Release Ruby Connector
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract SDK version from Ruby file
+        id: extract_version
+        run: |
+          # Extract SDK version from Ruby file
+          SDK_VERSION=$(ruby -e "
+            require './lib/queueit_knownuserv3/user_in_queue_service'
+            puts QueueIt::UserInQueueService::SDK_VERSION_NO
+          ")
+
+          if [ -z \"$SDK_VERSION\" ]; then
+            echo \"Error: Could not extract SDK version.\"
+            exit 1
+          fi
+
+          # Generate a build suffix with date + commit SHA short
+          BUILD_DATE=$(date +%Y%m%d)
+          SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
+          BUILD_SUFFIX=\"$BUILD_DATE-$SHORT_SHA\"
+
+          echo "SDK_VERSION=$SDK_VERSION" >> $GITHUB_ENV
+          echo "BUILD_SUFFIX=$BUILD_SUFFIX" >> $GITHUB_ENV
+          echo "VERSION_TAG=$SDK_VERSION" >> $GITHUB_ENV
+
+          echo "Extracted SDK Version: $SDK_VERSION"
+          echo "Build Suffix: $BUILD_SUFFIX"
+          echo "Full Tag: $SDK_VERSION-$BUILD_SUFFIX"
+
+      # Find the PR associated with this commit (merge, squash or rebase)
+      - name: Get PR for this commit
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const sha = context.sha;
+            // REST: list PRs associated with a commit
+            const res = await github.request('GET /repos/{owner}/{repo}/commits/{ref}/pulls', {
+              owner, repo, ref: sha,
+              headers: { accept: 'application/vnd.github+json' }
+            });
+
+            if (!res.data.length) {
+              core.notice('No PR associated with this commit. Falling back to default body.');
+              core.setOutput('number', '');
+              core.setOutput('title', '');
+              core.setOutput('body', '');
+            } else {
+              // If multiple, grab the first (usually the relevant one for the head commit)
+              const pr = res.data[0];
+              core.setOutput('number', String(pr.number));
+              core.setOutput('title', pr.title ?? '');
+              core.setOutput('body', pr.body ?? '');
+            }
+
+      # Prepare PR body for release notes
+      - name: Write PR body to file
+        run: |
+          cat <<'EOF' > pr_body.md
+          ${{ steps.pr.outputs.body }}
+          EOF
+
+      - name: Create release asset archive
+        run: |
+          mkdir -p release-assets
+          tar -czf "release-assets/ruby-connector-${{ env.VERSION_TAG }}.tar.gz" \
+            lib/ \
+            test/ \
+            bin/ \
+            *.gemspec \
+            Gemfile \
+            Rakefile \
+            README.md \
+            license.txt
+
+      - name: Show debug release variables
+        run: |
+          echo "SDK_VERSION: ${{ env.SDK_VERSION }}"
+          echo "BUILD_SUFFIX: ${{ env.BUILD_SUFFIX }}"
+          echo "VERSION_TAG: ${{ env.VERSION_TAG }}"
+          echo "PR_NUMBER: ${{ steps.pr.outputs.number }}"
+          echo "PR_TITLE:  ${{ steps.pr.outputs.title }}"
+          echo "RELEASE_NAME: ${{ env.RELEASE_NAME }}"
+          echo "Asset path: release-assets/ruby-connector-${{ env.VERSION_TAG }}.tar.gz"
+
+      - name: Create Git tag
+        run: |
+          git config user.name "$QUEUEIT_GITHUB_NAME"
+          git config user.email "$QUEUEIT_GITHUB_EMAIL"
+          git tag "${{ env.VERSION_TAG }}"
+          git push origin "${{ env.VERSION_TAG }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION_TAG }}
+          name: ${{ env.VERSION_TAG }}
+          body_path: pr_body.md
+          files: release-assets/ruby-connector-${{ env.VERSION_TAG }}.tar.gz
+
+      - name: Display release links
+        run: |
+          echo "Release creation completed. Check:"
+          echo "- Tags: https://github.com/${{ github.repository }}/tags"
+          echo "- Releases: https://github.com/${{ github.repository }}/releases"
+          echo "- Latest Release: https://github.com/${{ github.repository }}/releases/tag/${{ env.VERSION_TAG }}"
